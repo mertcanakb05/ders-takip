@@ -74,7 +74,8 @@ function gocEt(x) {
     if (d.ucret === 0 && !d.tur && /^(Tanışma dersi|Hibe)/.test(d.not || '')) {
       const kim = (d.not.match(/^Tanışma dersi \(([^)]+)\)/) || [])[1];
       d.tur = 'degerlendirme';
-      d.not = kim && kim !== 'Pars' ? `Değerlendirme dersi (${kim})` : 'Değerlendirme dersi';
+      const kendi = (x.ogrenciler || []).find(o => o.id === d.ogrenciId)?.ad;
+      d.not = kim && kim !== kendi ? `Değerlendirme dersi (${kim})` : 'Değerlendirme dersi';
     }
   }
   // Haftalık yedek hatırlatması bu tarihten sayılır (hiç yedek alınmadıysa)
@@ -474,7 +475,7 @@ function sAyarlar() {
 
   <h3 class="bolum">Diğer</h3>
   <button class="btn tehlike genis" data-act="tum-sil">Tüm verileri sil</button>
-  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.2</p>`;
+  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.3</p>`;
   return { baslik: 'Ayarlar', html: h };
 }
 
@@ -708,7 +709,7 @@ function ogrSheet(id = null) {
   const o = id ? ogr(id) : null;
   const v = o || { ad: '', veliAd: '', telefon: '', odemeDuzeni: 'haftalik', paketDers: 8, yontem: 'elden', baslangic: bugun(), program: [], not: '', aktif: true };
   sheet(o ? `${o.ad} · düzenle` : 'Yeni öğrenci', `
-    <label>Öğrenci adı<input name="ad" value="${esc(v.ad)}" placeholder="Örn. Ayşe"></label>
+    <label>Öğrenci adı<input name="ad" value="${esc(v.ad)}" placeholder="Öğrencinin adı"></label>
     <div class="iki"><label>Veli adı<input name="veliAd" value="${esc(v.veliAd)}"></label><label>Veli telefonu<input type="tel" name="telefon" value="${esc(v.telefon)}" placeholder="05xx…"></label></div>
     <label>Ödeme düzeni<select name="duzen">${Object.entries(DUZEN).map(([k, l]) => `<option value="${k}" ${v.odemeDuzeni === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     <label id="pk-satir" ${v.odemeDuzeni === 'paket' ? '' : 'hidden'}>Paketteki ders sayısı<input type="number" inputmode="numeric" name="paketDers" value="${v.paketDers}"></label>
