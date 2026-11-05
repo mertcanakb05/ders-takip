@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Ders Takip · Genel Arşiv</title>
+<link rel="icon" type="image/png" href="icon-180.png">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fff; color: #1c1c1e; font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .sayfa { max-width: 920px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 16px) 16px 48px; }
+  h1 { font-size: 22px; margin: 0; }
+  h2 { font-size: 17px; margin: 32px 0 10px; padding-bottom: 6px; border-bottom: 2px solid #1c1c1e; }
+  .alt { color: #6e6e73; font-size: 13px; margin-top: 4px; }
+  .ust { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .dugmeler { display: flex; gap: 8px; flex-wrap: wrap; }
+  a.btn, button { font: inherit; font-size: 14px; padding: 8px 12px; border: 1px solid #c7c7cc; border-radius: 8px; background: #fff; color: #1c1c1e; text-decoration: none; cursor: pointer; }
+  button.ana { background: #0f766e; border-color: #0f766e; color: #fff; }
+  .ozet { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: #e3e3e8; border: 1px solid #e3e3e8; }
+  .ozet div { background: #fff; padding: 10px 12px; }
+  .ozet span { display: block; font-size: 12px; color: #6e6e73; }
+  .ozet b { font-size: 18px; font-variant-numeric: tabular-nums; }
+  .tablo-kap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 7px 8px; border-bottom: 1px solid #e3e3e8; text-align: left; white-space: nowrap; }
+  th { font-size: 12px; color: #6e6e73; font-weight: 600; background: #f5f5f7; }
+  td.s, th.s { text-align: right; font-variant-numeric: tabular-nums; }
+  tfoot td { font-weight: 700; border-top: 2px solid #1c1c1e; border-bottom: 0; }
+  .eksi { color: #b45309; font-weight: 600; }
+  .arti { color: #15803d; font-weight: 600; }
+  .gri { color: #8e8e93; }
+  .ustu-cizili { text-decoration: line-through; color: #8e8e93; }
+  details { border: 1px solid #e3e3e8; border-radius: 8px; margin-bottom: 8px; }
+  details summary { padding: 10px 12px; cursor: pointer; display: flex; justify-content: space-between; gap: 12px; font-weight: 600; }
+  details summary span { font-weight: 400; color: #6e6e73; }
+  details[open] summary { border-bottom: 1px solid #e3e3e8; }
+  details .ic { padding: 8px 12px 12px; }
+  .bilgi { font-size: 13px; color: #6e6e73; margin-bottom: 8px; }
+  .suzgec { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .suzgec select { font: inherit; font-size: 15px; padding: 7px 10px; border: 1px solid #c7c7cc; border-radius: 8px; background: #fff; }
+  .bos { padding: 48px 16px; text-align: center; }
+  .bos p { color: #6e6e73; max-width: 420px; margin: 8px auto 20px; }
+  .etiket { font-size: 12px; padding: 1px 7px; border-radius: 10px; background: #f2f2f7; color: #48484a; }
+  .dar { display: none; }
+  /* Telefonda tablolar ekrana sığsın: ikinci derecedeki sütunlar gizlenir */
+  @media (max-width: 600px) {
+    body { font-size: 14px; }
+    table { font-size: 13px; }
+    th, td { padding: 6px 5px; }
+    .gz { display: none; }
+    .dar { display: inline; }
+    td.sar { white-space: normal; }
+  }
+  @media print {
+    .dugmeler, .suzgec, .yazdirma-yok { display: none !important; }
+    details { break-inside: avoid; }
+    body { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="sayfa" id="sayfa"></div>
+<script>
+'use strict';
+/* Genel Arşiv — salt okunur. Veriyi değiştirmez, hiçbir şey kaydetmez. */
+const KEY = 'dersTakip.v1';
+const GUN = ['', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+const AY = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+const DUZEN = { haftalik: 'Haftalık', paket: 'Paket (peşin)', ders: 'Ders başı' };
+const YONTEM = { elden: 'Elden', iban: 'IBAN' };
+const DURUM = { planlandi: 'Planlandı', yapildi: 'Yapıldı', iptal: 'İptal', ertelendi: 'Ertelendi' };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const tl = n => Math.round(n).toLocaleString('tr-TR') + ' TL';
+const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const gunNo = s => { const g = parse(s).getDay(); return g === 0 ? 7 : g; };
+const tarih = s => { const d = parse(s); return `${d.getDate()} ${AY[d.getMonth()]} ${d.getFullYear()}`; };
+const tarihGun = s => `${tarih(s)} ${GUN[gunNo(s)]}`;
+const ayAd = k => { const [y, m] = k.split('-').map(Number); return `${AY[m - 1]} ${y}`; };
+/* Kısa tarih: "5 Kas" (bu yıl değilse "5 Kas 2025") */
+const kisa = s => { const d = parse(s); return `${d.getDate()} ${AY[d.getMonth()].slice(0, 3)}${d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() : ''}`; };
+const $ = s => document.querySelector(s);
+
+let db = null;
+try { db = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { db = null; }
+
+function bosEkran() {
+  $('#sayfa').innerHTML = `<div class="bos">
+    <h1>Genel Arşiv</h1>
+    <p>Henüz kayıt yok.</p>
+    <a class="btn" href="./">‹ Uygulamaya dön</a></div>`;
+}
+
+function ciz() {
+  if (!db) return bosEkran();
+  const ogr = id => db.ogrenciler.find(o => o.id === id);
+  const ad = id => ogr(id)?.ad || '(silinmiş öğrenci)';
+  const dersler = db.dersler.filter(d => ogr(d.ogrenciId)).slice().sort((a, b) => (a.tarih + a.bas).localeCompare(b.tarih + b.bas));
+  const odemeler = db.odemeler.filter(p => ogr(p.ogrenciId)).slice().sort((a, b) => a.tarih.localeCompare(b.tarih));
+  const yapilan = dersler.filter(d => d.durum === 'yapildi');
+  const top = (l, f) => l.reduce((a, x) => a + f(x), 0);
+
+  // Öğrenci bazında
+  const ogrSatir = db.ogrenciler.map(o => {
+    const yd = yapilan.filter(d => d.ogrenciId === o.id), od = odemeler.filter(p => p.ogrenciId === o.id);
+    const ders = top(yd, d => d.ucret), odenen = top(od, p => p.tutar);
+    return { o, n: yd.length, iptal: dersler.filter(d => d.ogrenciId === o.id && d.durum === 'iptal').length, ders, odenen, bakiye: odenen - ders };
+  }).sort((a, b) => (a.o.aktif === false) - (b.o.aktif === false) || a.o.ad.localeCompare(b.o.ad, 'tr'));
+
+  const alacak = top(ogrSatir.filter(r => r.bakiye < 0), r => -r.bakiye);
+  const pesin = top(ogrSatir.filter(r => r.bakiye > 0), r => r.bakiye);
+  const aktif = db.ogrenciler.filter(o => o.aktif !== false).length;
+
+  // Aylık
+  const aylar = {};
+  const ay = k => (aylar[k] ||= { n: 0, ders: 0, elden: 0, iban: 0, iptal: 0 });
+  for (const d of dersler) { if (d.durum === 'yapildi') { ay(d.tarih.slice(0, 7)).n++; ay(d.tarih.slice(0, 7)).ders += d.ucret; } if (d.durum === 'iptal') ay(d.tarih.slice(0, 7)).iptal++; }
+  for (const p of odemeler) ay(p.tarih.slice(0, 7))[p.yontem === 'iban' ? 'iban' : 'elden'] += p.tutar;
+  const ayAnahtar = Object.keys(aylar).sort().reverse();
+
+  const guncel = db.degisti ? new Date(db.degisti) : null;
+  const bakiyeYaz = b => b < 0 ? `<span class="eksi">${tl(-b)} alacak</span>` : b > 0 ? `<span class="arti">${tl(b)} peşin</span>` : '<span class="gri">—</span>';
+
+  let h = `<div class="ust"><div><h1>Genel Arşiv</h1>
+      <div class="alt">${guncel ? `Son değişiklik ${guncel.getDate()} ${AY[guncel.getMonth()]} ${guncel.getFullYear()} ${String(guncel.getHours()).padStart(2, '0')}:${String(guncel.getMinutes()).padStart(2, '0')} · ` : ''}Bu sayfa sadece görüntüler, hiçbir kaydı değiştirmez.</div></div>
+    <div class="dugmeler"><a class="btn" href="./">‹ Uygulamaya dön</a><button onclick="print()">Yazdır / PDF</button></div></div>`;
+
+  h += `<h2>Genel durum</h2><div class="ozet">
+    <div><span>Öğrenci</span><b>${aktif} aktif</b>${db.ogrenciler.length - aktif ? ` <span>+ ${db.ogrenciler.length - aktif} arşivde</span>` : ''}</div>
+    <div><span>Yapılan ders (toplam)</span><b>${yapilan.length}</b></div>
+    <div><span>Ders tutarı (toplam)</span><b>${tl(top(yapilan, d => d.ucret))}</b></div>
+    <div><span>Tahsil edilen (toplam)</span><b>${tl(top(odemeler, p => p.tutar))}</b></div>
+    <div><span>Şu anki alacak</span><b class="${alacak ? 'eksi' : ''}">${tl(alacak)}</b></div>
+    <div><span>Peşin alınmış</span><b>${tl(pesin)}</b></div></div>`;
+
+  h += `<h2>Aylık özet</h2><div class="tablo-kap"><table>
+    <thead><tr><th>Ay</th><th class="s">Ders</th><th class="s gz">İptal</th><th class="s">Ders tutarı</th><th class="s gz">Elden</th><th class="s gz">IBAN</th><th class="s">Tahsilat</th></tr></thead>
+    <tbody>${ayAnahtar.map(k => { const a = aylar[k]; return `<tr><td>${ayAd(k)}</td><td class="s">${a.n}</td><td class="s gz">${a.iptal || ''}</td><td class="s">${tl(a.ders)}</td><td class="s gz">${tl(a.elden)}</td><td class="s gz">${tl(a.iban)}</td><td class="s"><b>${tl(a.elden + a.iban)}</b></td></tr>`; }).join('')}</tbody></table></div>`;
+
+  h += `<h2>Öğrenciler</h2><div class="tablo-kap"><table>
+    <thead><tr><th>Öğrenci</th><th class="gz">Durum</th><th class="gz">Ödeme</th><th class="s">Ders</th><th class="s gz">Ders tutarı</th><th class="s">Ödenen</th><th class="s">Bakiye</th></tr></thead>
+    <tbody>${ogrSatir.map(r => `<tr><td class="sar"><b>${esc(r.o.ad)}</b>${r.o.aktif === false ? ' <span class="etiket dar">arşiv</span>' : ''}</td><td class="gz">${r.o.aktif === false ? `<span class="etiket">Arşivde${r.o.ayrilis ? ' · ' + tarih(r.o.ayrilis) : ''}</span>` : 'Aktif'}</td><td class="gz">${DUZEN[r.o.odemeDuzeni] || ''} · ${YONTEM[r.o.yontem] || ''}</td><td class="s">${r.n}</td><td class="s gz">${tl(r.ders)}</td><td class="s">${tl(r.odenen)}</td><td class="s">${bakiyeYaz(r.bakiye)}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td>Toplam</td><td class="gz"></td><td class="gz"></td><td class="s">${top(ogrSatir, r => r.n)}</td><td class="s gz">${tl(top(ogrSatir, r => r.ders))}</td><td class="s">${tl(top(ogrSatir, r => r.odenen))}</td><td></td></tr></tfoot></table></div>`;
+
+  h += `<h2>Öğrenci dosyaları</h2><p class="bilgi yazdirma-yok">İsme dokununca o öğrencinin bütün dersleri ve ödemeleri açılır.</p>`;
+  for (const r of ogrSatir) {
+    const o = r.o;
+    const olay = [
+      ...dersler.filter(d => d.ogrenciId === o.id && d.durum !== 'planlandi').map(d => ({ k: d.tarih + ' ' + d.bas, d })),
+      ...odemeler.filter(p => p.ogrenciId === o.id).map(p => ({ k: p.tarih + ' ~', p }))
+    ].sort((a, b) => b.k.localeCompare(a.k));
+    const program = (o.program || []).slice().sort((a, b) => a.gun - b.gun).map(s => `${GUN[s.gun]} ${s.bas}–${s.bit} (${tl(s.ucret)})`).join(' · ');
+    h += `<details><summary>${esc(o.ad)}${o.aktif === false ? ' <span>(arşivde)</span>' : ''}<span>${r.n} ders · ${bakiyeYaz(r.bakiye)}</span></summary><div class="ic">
+      <div class="bilgi">${DUZEN[o.odemeDuzeni] || ''}${o.odemeDuzeni === 'paket' ? ` (${o.paketDers} ders)` : ''} · ${YONTEM[o.yontem] || ''}${o.veliAd ? ` · Veli: ${esc(o.veliAd)}` : ''}${o.telefon ? ` · ${esc(o.telefon)}` : ''}${program ? `<br>Program: ${program}` : ''}${o.not ? `<br>Not: ${esc(o.not)}` : ''}</div>
+      ${olay.length ? `<div class="tablo-kap"><table><thead><tr><th>Tarih</th><th>İşlem</th><th class="s">Tutar</th><th class="gz">Not</th></tr></thead><tbody>
+      ${olay.map(e => e.d
+        ? `<tr><td><span class="gz">${tarihGun(e.d.tarih)}</span><span class="dar">${kisa(e.d.tarih)}</span> ${e.d.bas}</td><td class="${e.d.durum === 'yapildi' ? '' : 'ustu-cizili'}">Ders · ${DURUM[e.d.durum]}</td><td class="s">${e.d.durum === 'yapildi' ? tl(e.d.ucret) : ''}</td><td class="gri gz">${esc(e.d.not || '')}</td></tr>`
+        : `<tr><td><span class="gz">${tarihGun(e.p.tarih)}</span><span class="dar">${kisa(e.p.tarih)}</span></td><td class="arti">Ödeme · ${YONTEM[e.p.yontem] || ''}${e.p.paketDers ? ` · ${e.p.paketDers} ders` : ''}</td><td class="s arti">+${tl(e.p.tutar)}</td><td class="gri gz">${esc(e.p.not || '')}</td></tr>`).join('')}
+      </tbody></table></div>` : '<div class="gri">Kayıt yok.</div>'}</div></details>`;
+  }
+
+  // Tüm hareketler (süzgeçli)
+  const ayListe = [...new Set([...dersler.map(d => d.tarih.slice(0, 7)), ...odemeler.map(p => p.tarih.slice(0, 7))])].sort().reverse();
+  h += `<h2>Tüm hareketler</h2>
+    <div class="suzgec">
+      <select id="s-ogr"><option value="">Tüm öğrenciler</option>${db.ogrenciler.slice().sort((a, b) => a.ad.localeCompare(b.ad, 'tr')).map(o => `<option value="${o.id}">${esc(o.ad)}</option>`).join('')}</select>
+      <select id="s-ay"><option value="">Tüm aylar</option>${ayListe.map(k => `<option value="${k}">${ayAd(k)}</option>`).join('')}</select>
+      <select id="s-tur"><option value="">Ders ve ödeme</option><option value="d">Sadece dersler</option><option value="p">Sadece ödemeler</option></select>
+    </div><div class="tablo-kap"><table><thead><tr><th>Tarih</th><th>Öğrenci</th><th>Durum</th><th class="s">Tutar</th></tr></thead><tbody id="hareket"></tbody><tfoot id="hareket-top"></tfoot></table></div>`;
+
+  $('#sayfa').innerHTML = h;
+
+  const hareketCiz = () => {
+    const so = $('#s-ogr').value, sa = $('#s-ay').value, st = $('#s-tur').value;
+    const uy = x => (!so || x.ogrenciId === so) && (!sa || x.tarih.startsWith(sa));
+    const l = [
+      ...(st === 'p' ? [] : dersler.filter(d => d.durum !== 'planlandi' && uy(d)).map(d => ({ k: d.tarih + ' ' + d.bas, d }))),
+      ...(st === 'd' ? [] : odemeler.filter(uy).map(p => ({ k: p.tarih + ' ~', p })))
+    ].sort((a, b) => b.k.localeCompare(a.k));
+    $('#hareket').innerHTML = l.map(e => e.d
+      ? `<tr><td>${kisa(e.d.tarih)} ${e.d.bas}</td><td class="sar">${esc(ad(e.d.ogrenciId))}</td><td class="${e.d.durum === 'yapildi' ? '' : 'ustu-cizili'}">${DURUM[e.d.durum]}</td><td class="s">${e.d.durum === 'yapildi' ? tl(e.d.ucret) : ''}</td></tr>`
+      : `<tr><td>${kisa(e.p.tarih)}</td><td class="sar">${esc(ad(e.p.ogrenciId))}</td><td class="arti">Ödeme · ${YONTEM[e.p.yontem] || ''}</td><td class="s arti">+${tl(e.p.tutar)}</td></tr>`).join('') || '<tr><td colspan="4" class="gri">Kayıt yok.</td></tr>';
+    const dt = top(l.filter(e => e.d && e.d.durum === 'yapildi'), e => e.d.ucret), pt = top(l.filter(e => e.p), e => e.p.tutar);
+    $('#hareket-top').innerHTML = `<tr><td colspan="2">${l.filter(e => e.d && e.d.durum === 'yapildi').length} ders · ${l.filter(e => e.p).length} ödeme</td><td colspan="2" class="s">Ders ${tl(dt)}<br><span class="arti">Ödeme ${tl(pt)}</span></td></tr>`;
+  };
+  ['#s-ogr', '#s-ay', '#s-tur'].forEach(s => $(s).onchange = hareketCiz);
+  hareketCiz();
+}
+ciz();
+// Yazdırırken tüm öğrenci dosyaları açık olsun
+addEventListener('beforeprint', () => document.querySelectorAll('details').forEach(d => d.open = true));
+</script>
+</body>
+</html>

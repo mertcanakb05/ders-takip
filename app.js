@@ -429,13 +429,17 @@ function sKasa() {
 
   h += `<h3 class="bolum">Bu ayki ödemeler</h3>` + (od.length ? `<div class="liste">${od.map(p => odemeSatiri(p)).join('')}</div>` : '<div class="bos">Bu ay ödeme kaydı yok.</div>');
   h += `<button class="btn ana genis" data-act="odeme-yeni" style="margin-top:18px">+ Ödeme kaydet</button>`;
-  return { baslik: 'Kasa', html: h };
+  h += `<a class="btn genis" href="arsiv.html" style="text-decoration:none">📋 Genel arşiv: tüm kayıtlar tek sayfada</a>`;
+  return { baslik: 'Kasa', html: h, sag: '<a class="ust-btn" href="arsiv.html" style="text-decoration:none">Arşiv</a>' };
 }
 
 function sAyarlar() {
   const a = db.ayarlar;
   const s = a.sonYedek ? new Date(a.sonYedek) : null;
-  const h = `<h3 class="bolum">Yedek</h3>
+  const h = `<h3 class="bolum">Genel arşiv</h3>
+  <a class="btn genis" href="arsiv.html" style="text-decoration:none;margin-top:0">📋 Tüm kayıtları tek sayfada gör</a>
+  <p class="kucuk-yazi">Bütün öğrenciler, dersler ve ödemeler; aylık özet ve öğrenci dosyaları. Sadece görüntüler, hiçbir şeyi değiştirmez.</p>
+  <h3 class="bolum">Yedek</h3>
   <div class="bilgi"><div><span>Son yedek</span><b>${s ? `${s.getDate()} ${AY[s.getMonth()]} ${s.getFullYear()}` : 'Hiç alınmadı'}</b></div>
   <div><span>Kayıtlar</span><b>${db.ogrenciler.length} öğrenci · ${db.dersler.length} ders · ${db.odemeler.length} ödeme</b></div></div>
   <p class="kucuk-yazi">Veriler sadece bu telefonda durur. Haftada bir yedek alıp "Dosyalar"a (iCloud Drive) kaydet ya da kendine WhatsApp'tan gönder. Telefon değişirse yedek dosyası yeni telefonda "Yedekten geri yükle" ile açılır.</p>
@@ -446,7 +450,7 @@ function sAyarlar() {
 
   <h3 class="bolum">Diğer</h3>
   <button class="btn tehlike genis" data-act="tum-sil">Tüm verileri sil</button>
-  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 1.6</p>`;
+  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 1.7</p>`;
   return { baslik: 'Ayarlar', html: h };
 }
 

@@ -1,6 +1,6 @@
 // Çevrimdışı çalışma: önce ağdan dener (güncellemeler hemen gelsin), ağ yoksa önbellekten açar.
-const ONBELLEK = 'ders-takip-v7';
-const DOSYALAR = ['./', './index.html', './app.js', './style.css', './manifest.webmanifest', './icon-180.png', './icon-512.png'];
+const ONBELLEK = 'ders-takip-v8';
+const DOSYALAR = ['./', './index.html', './arsiv.html', './app.js', './style.css', './manifest.webmanifest', './icon-180.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(ONBELLEK).then(c => c.addAll(DOSYALAR)).then(() => self.skipWaiting()));
