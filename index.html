@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Ders Takip">
+<meta name="theme-color" content="#f2f2f7">
+<title>Ders Takip</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-180.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="ust">
+  <button id="geri" class="ust-btn" hidden>‹ Geri</button>
+  <h1 id="baslik">Ders Takip</h1>
+  <div id="ust-sag"></div>
+</header>
+
+<main id="icerik"></main>
+
+<nav id="alt" hidden>
+  <button data-sekme="bugun"><span class="ikon">◉</span>Bugün</button>
+  <button data-sekme="hafta"><span class="ikon">▦</span>Hafta</button>
+  <button data-sekme="ogrenciler"><span class="ikon">☺</span>Öğrenciler</button>
+  <button data-sekme="kasa"><span class="ikon">₺</span>Kasa</button>
+  <button data-sekme="ayarlar"><span class="ikon">⚙</span>Ayarlar</button>
+</nav>
+
+<div id="perde" hidden></div>
+<section id="sheet" aria-modal="true" role="dialog">
+  <div class="tutamac"></div>
+  <div class="sheet-bas">
+    <h2 id="sheet-baslik"></h2>
+    <button id="sheet-kapat" class="ust-btn">Kapat</button>
+  </div>
+  <div id="sheet-govde"></div>
+</section>
+
+<div id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
