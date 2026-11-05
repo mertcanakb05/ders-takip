@@ -69,6 +69,14 @@ function bosDb() { return { surum: 1, ayarlar: { ad: '', iban: '', ibanAd: '', s
 function gocEt(x) {
   x.ayarlar ||= {}; x.ogrenciler ||= []; x.dersler ||= []; x.odemeler ||= [];
   for (const o of x.ogrenciler) { o.program ||= []; o.odemeDuzeni ||= 'haftalik'; o.yontem ||= 'elden'; o.paketDers ||= 8; }
+  // Eski kayıtlardaki ücretsiz "tanışma" ve "hibe" dersleri → değerlendirme dersi
+  for (const d of x.dersler || []) {
+    if (d.ucret === 0 && !d.tur && /^(Tanışma dersi|Hibe)/.test(d.not || '')) {
+      const kim = (d.not.match(/^Tanışma dersi \(([^)]+)\)/) || [])[1];
+      d.tur = 'degerlendirme';
+      d.not = kim && kim !== 'Pars' ? `Değerlendirme dersi (${kim})` : 'Değerlendirme dersi';
+    }
+  }
   // Haftalık yedek hatırlatması bu tarihten sayılır (hiç yedek alınmadıysa)
   x.ayarlar.yedekSayac ||= x.ayarlar.sonYedek || new Date().toISOString();
   return x;
@@ -227,6 +235,7 @@ function dersSatiri(d, { tarihli = false } = {}) {
   const pe = paketEt(o.id);
   let rozet = '';
   if (pe[d.id]) rozet = `<span class="rozet gri">Paket ${pe[d.id]}</span>`;
+  if (d.tur === 'degerlendirme') rozet = '<span class="rozet mavi">Değerlendirme</span>';
   if (d.durum === 'iptal') rozet = '<span class="rozet gri">İptal</span>';
   else if (d.durum === 'ertelendi') {
     const n = db.dersler.find(x => x.id === d.ertelemeId);
@@ -450,7 +459,7 @@ function sAyarlar() {
 
   <h3 class="bolum">Diğer</h3>
   <button class="btn tehlike genis" data-act="tum-sil">Tüm verileri sil</button>
-  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 1.9</p>`;
+  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.0</p>`;
   return { baslik: 'Ayarlar', html: h };
 }
 
@@ -503,16 +512,23 @@ function dersSheet(id) {
   if (d.durum === 'planlandi') x += `<div class="aksiyonlar"><button class="btn yesil" data-s="yapildi">✓ Yapıldı</button><button class="btn" data-s="iptal">İptal</button><button class="btn" data-s="ertele">Ertele</button></div>`;
   else if (d.durum === 'ertelendi') x += `<div class="aksiyonlar"><button class="btn" data-s="ertele-geri">Ertelemeyi geri al</button></div>`;
   else x += `<div class="aksiyonlar"><button class="btn" data-s="planlandi">İşareti kaldır (planlandı yap)</button></div>`;
-  if (d.durum === 'yapildi' || d.durum === 'planlandi') x += `<button class="btn ana genis" data-s="odeme">₺ Ödeme kaydet</button>`;
-  x += `<details class="duzenle"><summary>Saat, ücret veya not değiştir</summary>
+  const deg = d.tur === 'degerlendirme';
+  if ((d.durum === 'yapildi' || d.durum === 'planlandi') && !deg) x += `<button class="btn ana genis" data-s="odeme">₺ Ödeme kaydet</button>`;
+  x += `<details class="duzenle"><summary>Saat, ücret, tür veya not değiştir</summary>
     <div class="iki"><label>Başlangıç${saatAlani('bas', d.bas)}</label><label>Bitiş${saatAlani('bit', d.bit)}</label></div>
-    <label>Ücret (TL)<input type="number" inputmode="numeric" name="ucret" value="${d.ucret}"></label>
+    <label class="onay"><input type="checkbox" name="degerlendirme" ${deg ? 'checked' : ''}> Değerlendirme dersi (ücretsiz)</label>
+    <label>Ücret (TL)<input type="number" inputmode="numeric" name="ucret" value="${d.ucret}" ${deg ? 'disabled' : ''}></label>
     <label>Not<input name="not" value="${esc(d.not || '')}" placeholder="İsteğe bağlı"></label>
     <button class="btn ana genis" data-s="kaydet">Kaydet</button></details>`;
   if (!d.sanal && d.kaynak !== 'program') x += `<button class="btn tehlike genis" data-s="sil">Bu dersi sil</button>`;
   x += `<button class="btn hafif genis" data-s="ogrenci">${esc(o.ad)} sayfasına git ›</button>`;
 
   sheet(`${o.ad} · ${tarihYaz(d.tarih)}`, x, g => {
+    const degK = $('[name=degerlendirme]', g), ucK = $('[name=ucret]', g);
+    degK.onchange = () => {
+      ucK.disabled = degK.checked;
+      ucK.value = degK.checked ? 0 : (d.ucret || ogr(d.ogrenciId).program.find(s => s.id === d.slotId)?.ucret || H(d.ogrenciId).birim || '');
+    };
     $$('[data-s]', g).forEach(btn => btn.onclick = () => {
       const s = btn.dataset.s;
       if (s === 'yapildi' || s === 'iptal' || s === 'planlandi') {
@@ -530,8 +546,12 @@ function dersSheet(id) {
         const bas = $('[name=bas]', g).value, bit = $('[name=bit]', g).value, ucret = sayi($('[name=ucret]', g).value);
         if (!bas || !bit || dk(bit) <= dk(bas)) return toast('Bitiş saati başlangıçtan sonra olmalı');
         if (!(ucret >= 0)) return toast('Ücret geçerli bir sayı olmalı');
-        const not = $('[name=not]', g).value.trim();
-        kapat(); degistir(() => { const a = gercekle(d); Object.assign(a, { bas, bit, ucret, not }); }, 'Ders güncellendi');
+        const not = $('[name=not]', g).value.trim(), dg = degK.checked;
+        kapat(); degistir(() => {
+          const a = gercekle(d);
+          Object.assign(a, { bas, bit, ucret: dg ? 0 : ucret, not });
+          if (dg) a.tur = 'degerlendirme'; else delete a.tur;
+        }, dg ? 'Değerlendirme dersi olarak kaydedildi' : 'Ders güncellendi');
       } else if (s === 'sil') {
         kapat(); degistir(() => {
           db.dersler = db.dersler.filter(z => z.id !== d.id);
@@ -575,21 +595,26 @@ function dersYeniSheet(ogrenciId = null) {
     <label>Öğrenci<select name="ogr">${akt.map(o => `<option value="${o.id}" ${o.id === sec ? 'selected' : ''}>${esc(o.ad)}</option>`).join('')}</select></label>
     <label>Tarih<input type="date" name="tarih" value="${bugun()}"><span class="tarih-yazi">${tarihYaz(bugun())}</span></label>
     <div class="iki"><label>Başlangıç${saatAlani('bas', '17:00')}</label><label>Bitiş${saatAlani('bit', '18:00')}</label></div>
+    <label class="onay"><input type="checkbox" name="degerlendirme"> Değerlendirme dersi (ücretsiz)</label>
     <label>Ücret (TL)<input type="number" inputmode="numeric" name="ucret"></label>
     <label>Not<input name="not" placeholder="Örn. sınav öncesi ek ders"></label>
     <label class="onay"><input type="checkbox" name="yapildi"> Ders yapıldı olarak işaretle</label>
     <button class="btn ana genis" data-s="tamam">Dersi ekle</button>`, g => {
     const s = $('[name=ogr]', g), bas = $('[name=bas]', g), bit = $('[name=bit]', g), uc = $('[name=ucret]', g), tr = $('[name=tarih]', g), yp = $('[name=yapildi]', g);
-    const doldur = () => { const o = ogr(s.value), sl = o.program[0]; saatYaz(bas, sl?.bas || '17:00'); saatYaz(bit, sl?.bit || '18:00'); uc.value = H(o.id).birim || ''; };
+    const dg = $('[name=degerlendirme]', g);
+    const doldur = () => { const o = ogr(s.value), sl = o.program[0]; saatYaz(bas, sl?.bas || '17:00'); saatYaz(bit, sl?.bit || '18:00'); uc.value = dg.checked ? 0 : (H(o.id).birim || ''); };
+    dg.onchange = () => { uc.disabled = dg.checked; uc.value = dg.checked ? 0 : (H(s.value).birim || ''); };
     bas.onchange = () => { const sl = ogr(s.value).program[0], sure = sl ? dk(sl.bit) - dk(sl.bas) : 60; saatYaz(bit, saat(dk(bas.value) + sure)); };
     s.onchange = doldur; doldur();
     tr.onchange = () => { yp.checked = tr.value < bugun(); };
     $('[data-s=tamam]', g).onclick = () => {
-      const ucret = sayi(uc.value);
+      const ucret = dg.checked ? 0 : sayi(uc.value);
       if (!tr.value || !bas.value || !bit.value || dk(bit.value) <= dk(bas.value)) return toast('Tarih ve saatleri kontrol et');
       if (!(ucret >= 0)) return toast('Ücret gir');
       const o = ogr(s.value); kapat();
-      degistir(() => db.dersler.push({ id: uid(), ogrenciId: o.id, tarih: tr.value, bas: bas.value, bit: bit.value, ucret, durum: yp.checked ? 'yapildi' : 'planlandi', kaynak: 'ekstra', not: $('[name=not]', g).value.trim() }), `${o.ad} · ekstra ders eklendi`);
+      const yeni = { id: uid(), ogrenciId: o.id, tarih: tr.value, bas: bas.value, bit: bit.value, ucret, durum: yp.checked ? 'yapildi' : 'planlandi', kaynak: 'ekstra', not: $('[name=not]', g).value.trim() };
+      if (dg.checked) { yeni.tur = 'degerlendirme'; yeni.not ||= 'Değerlendirme dersi'; }
+      degistir(() => db.dersler.push(yeni), `${o.ad} · ${dg.checked ? 'değerlendirme dersi' : 'ekstra ders'} eklendi`);
     };
   });
 }

@@ -41,6 +41,7 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 [hidden] { display: none !important; }
+input:disabled { opacity: .45; background: var(--gri-acik); }
 html, body { margin: 0; background: var(--zemin); color: var(--yazi); }
 body {
   font: 16px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
