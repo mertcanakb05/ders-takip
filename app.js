@@ -28,6 +28,40 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const sirala = (a, b) => (a.tarih + a.bas).localeCompare(b.tarih + b.bas);
 const adSirala = (a, b) => a.ad.localeCompare(b.ad, 'tr');
+/* 24 saat biçiminde saat seçici (cihazın ÖÖ/ÖS ayarından bağımsız).
+   Değer gizli <input name="..."> içinde "HH:MM" olarak tutulur; seçim değişince input'a "change" gönderilir. */
+function saatAlani(name, val = '17:00') {
+  const [h, m] = (val || '17:00').split(':');
+  const saatler = [...Array(18)].map((_, i) => pad(i + 6));            // 06–23
+  const dakikalar = [...Array(12)].map((_, i) => pad(i * 5));          // 00, 05 … 55
+  if (!saatler.includes(h)) saatler.push(h);
+  if (!dakikalar.includes(m)) dakikalar.push(m);
+  saatler.sort(); dakikalar.sort();
+  const sec = (l, v) => l.map(x => `<option ${x === v ? 'selected' : ''}>${x}</option>`).join('');
+  return `<span class="saat-sec"><select data-p="h" aria-label="Saat">${sec(saatler, h)}</select><b>:</b><select data-p="m" aria-label="Dakika">${sec(dakikalar, m)}</select><input type="hidden" name="${name}" value="${h}:${m}"></span>`;
+}
+function saatYaz(inp, val) {
+  const w = inp.closest('.saat-sec'), [h, m] = val.split(':');
+  for (const [p, v] of [['h', h], ['m', m]]) {
+    const s = w.querySelector(`[data-p=${p}]`);
+    if (![...s.options].some(o => o.value === v)) s.add(new Option(v, v));
+    s.value = v;
+  }
+  inp.value = val;
+}
+/* Tarih kutusunun altında Türkçe okunuşu ("6 Kasım Cuma") */
+document.addEventListener('input', e => {
+  if (e.target.type !== 'date') return;
+  const y = e.target.nextElementSibling;
+  if (y?.classList.contains('tarih-yazi')) y.textContent = /^\d{4}-\d{2}-\d{2}$/.test(e.target.value) ? tarihYaz(e.target.value) : '';
+});
+document.addEventListener('change', e => {
+  if (e.target.tagName !== 'SELECT') return;
+  const w = e.target.closest('.saat-sec'); if (!w) return;
+  const inp = w.querySelector('input');
+  inp.value = `${w.querySelector('[data-p=h]').value}:${w.querySelector('[data-p=m]').value}`;
+  inp.dispatchEvent(new Event('change'));
+});
 const sayi = v => { const n = Number(String(v).replace(/\./g, '').replace(',', '.')); return isFinite(n) ? n : NaN; };
 
 /* ---------- veri ---------- */
@@ -412,7 +446,7 @@ function sAyarlar() {
 
   <h3 class="bolum">Diğer</h3>
   <button class="btn tehlike genis" data-act="tum-sil">Tüm verileri sil</button>
-  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 1.5</p>`;
+  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 1.6</p>`;
   return { baslik: 'Ayarlar', html: h };
 }
 
@@ -467,7 +501,7 @@ function dersSheet(id) {
   else x += `<div class="aksiyonlar"><button class="btn" data-s="planlandi">İşareti kaldır (planlandı yap)</button></div>`;
   if (d.durum === 'yapildi' || d.durum === 'planlandi') x += `<button class="btn ana genis" data-s="odeme">₺ Ödeme kaydet</button>`;
   x += `<details class="duzenle"><summary>Saat, ücret veya not değiştir</summary>
-    <div class="iki"><label>Başlangıç<input type="time" name="bas" value="${d.bas}"></label><label>Bitiş<input type="time" name="bit" value="${d.bit}"></label></div>
+    <div class="iki"><label>Başlangıç${saatAlani('bas', d.bas)}</label><label>Bitiş${saatAlani('bit', d.bit)}</label></div>
     <label>Ücret (TL)<input type="number" inputmode="numeric" name="ucret" value="${d.ucret}"></label>
     <label>Not<input name="not" value="${esc(d.not || '')}" placeholder="İsteğe bağlı"></label>
     <button class="btn ana genis" data-s="kaydet">Kaydet</button></details>`;
@@ -509,11 +543,11 @@ function erteleSheet(d, o) {
   const sure = dk(d.bit) - dk(d.bas);
   sheet(`${o.ad} · dersi ertele`, `
     <p class="ipucu" style="margin:4px 0 0">${tarihYaz(d.tarih)} ${d.bas} dersi yeni güne taşınır. Eski ders "ertelendi", yenisi "telafi" olarak görünür.</p>
-    <label>Yeni tarih<input type="date" name="tarih" value="${addDays(d.tarih, 1)}"></label>
-    <div class="iki"><label>Başlangıç<input type="time" name="bas" value="${d.bas}"></label><label>Bitiş<input type="time" name="bit" value="${d.bit}"></label></div>
+    <label>Yeni tarih<input type="date" name="tarih" value="${addDays(d.tarih, 1)}"><span class="tarih-yazi">${tarihYaz(addDays(d.tarih, 1))}</span></label>
+    <div class="iki"><label>Başlangıç${saatAlani('bas', d.bas)}</label><label>Bitiş${saatAlani('bit', d.bit)}</label></div>
     <button class="btn ana genis" data-s="tamam">Ertele</button>`, g => {
     const bas = $('[name=bas]', g), bit = $('[name=bit]', g);
-    bas.onchange = () => { if (bas.value) bit.value = saat(dk(bas.value) + sure); };
+    bas.onchange = () => { if (bas.value) saatYaz(bit, saat(dk(bas.value) + sure)); };
     $('[data-s=tamam]', g).onclick = () => {
       const t = $('[name=tarih]', g).value;
       if (!t || !bas.value || !bit.value) return toast('Tarih ve saat seç');
@@ -535,14 +569,15 @@ function dersYeniSheet(ogrenciId = null) {
   const sec = ogrenciId || akt[0].id;
   sheet('Ekstra ders ekle', `
     <label>Öğrenci<select name="ogr">${akt.map(o => `<option value="${o.id}" ${o.id === sec ? 'selected' : ''}>${esc(o.ad)}</option>`).join('')}</select></label>
-    <label>Tarih<input type="date" name="tarih" value="${bugun()}"></label>
-    <div class="iki"><label>Başlangıç<input type="time" name="bas"></label><label>Bitiş<input type="time" name="bit"></label></div>
+    <label>Tarih<input type="date" name="tarih" value="${bugun()}"><span class="tarih-yazi">${tarihYaz(bugun())}</span></label>
+    <div class="iki"><label>Başlangıç${saatAlani('bas', '17:00')}</label><label>Bitiş${saatAlani('bit', '18:00')}</label></div>
     <label>Ücret (TL)<input type="number" inputmode="numeric" name="ucret"></label>
     <label>Not<input name="not" placeholder="Örn. sınav öncesi ek ders"></label>
     <label class="onay"><input type="checkbox" name="yapildi"> Ders yapıldı olarak işaretle</label>
     <button class="btn ana genis" data-s="tamam">Dersi ekle</button>`, g => {
     const s = $('[name=ogr]', g), bas = $('[name=bas]', g), bit = $('[name=bit]', g), uc = $('[name=ucret]', g), tr = $('[name=tarih]', g), yp = $('[name=yapildi]', g);
-    const doldur = () => { const o = ogr(s.value), sl = o.program[0]; bas.value = sl?.bas || '17:00'; bit.value = sl?.bit || '18:00'; uc.value = H(o.id).birim || ''; };
+    const doldur = () => { const o = ogr(s.value), sl = o.program[0]; saatYaz(bas, sl?.bas || '17:00'); saatYaz(bit, sl?.bit || '18:00'); uc.value = H(o.id).birim || ''; };
+    bas.onchange = () => { const sl = ogr(s.value).program[0], sure = sl ? dk(sl.bit) - dk(sl.bas) : 60; saatYaz(bit, saat(dk(bas.value) + sure)); };
     s.onchange = doldur; doldur();
     tr.onchange = () => { yp.checked = tr.value < bugun(); };
     $('[data-s=tamam]', g).onclick = () => {
@@ -567,7 +602,7 @@ function odemeSheet({ ogrenciId = null, odemeId = null } = {}) {
     <label>Tutar (TL)<input type="number" inputmode="numeric" name="tutar" value="${mevcut?.tutar ?? ''}"></label>
     <div class="cipler" id="od-cip"></div>
     <label>Ödeme yöntemi</label><div class="segment" id="od-yon"><button data-v="elden">Elden</button><button data-v="iban">IBAN</button></div>
-    <label>Tarih<input type="date" name="tarih" value="${mevcut?.tarih || bugun()}"></label>
+    <label>Tarih<input type="date" name="tarih" value="${mevcut?.tarih || bugun()}"><span class="tarih-yazi">${tarihYaz(mevcut?.tarih || bugun())}</span></label>
     <label class="onay"><input type="checkbox" name="paket" ${mevcut?.paketDers ? 'checked' : ''}> Paket ödemesi: <input type="number" inputmode="numeric" class="mini" name="paketDers" value="${mevcut?.paketDers || 8}"> ders</label>
     <label>Not<input name="not" value="${esc(mevcut?.not || '')}" placeholder="İsteğe bağlı"></label>
     <button class="btn ana genis" data-s="kaydet">${mevcut ? 'Kaydet' : 'Ödemeyi kaydet'}</button>
@@ -619,10 +654,10 @@ function odemeSheet({ ogrenciId = null, odemeId = null } = {}) {
 /* Öğrenci ekle / düzenle */
 function slotHtml(s = {}) {
   return `<div class="slot" data-id="${s.id || ''}">
-    <select name="gun">${GUNK.slice(1).map((g, i) => `<option value="${i + 1}" ${s.gun === i + 1 ? 'selected' : ''}>${g}</option>`).join('')}</select>
-    <input type="time" name="bas" value="${s.bas || '17:00'}"><input type="time" name="bit" value="${s.bit || '18:00'}">
-    <input type="number" inputmode="numeric" name="ucret" value="${s.ucret ?? ''}" placeholder="TL">
-    <button class="sil-x" aria-label="Sil">×</button></div>`;
+    <select name="gun" aria-label="Gün">${GUN.slice(1).map((g, i) => `<option value="${i + 1}" ${s.gun === i + 1 ? 'selected' : ''}>${g}</option>`).join('')}</select>
+    <input type="number" inputmode="numeric" name="ucret" value="${s.ucret ?? ''}" placeholder="Ücret TL" aria-label="Ücret">
+    <button class="sil-x" aria-label="Sil">×</button>
+    <div class="slot-saat">${saatAlani('bas', s.bas || '17:00')}<span class="tire">–</span>${saatAlani('bit', s.bit || '18:00')}</div></div>`;
 }
 function ogrSheet(id = null) {
   const o = id ? ogr(id) : null;
@@ -634,10 +669,9 @@ function ogrSheet(id = null) {
     <label id="pk-satir" ${v.odemeDuzeni === 'paket' ? '' : 'hidden'}>Paketteki ders sayısı<input type="number" inputmode="numeric" name="paketDers" value="${v.paketDers}"></label>
     <label>Ödeme yöntemi</label><div class="segment" id="og-yon"><button data-v="elden">Elden</button><button data-v="iban">IBAN</button></div>
     <h3 class="bolum" style="margin-top:20px">Haftalık ders saatleri</h3>
-    <div class="slot-baslik"><span>Gün</span><span>Başlangıç</span><span>Bitiş</span><span>Ücret</span><span></span></div>
     <div id="slotlar">${v.program.map(slotHtml).join('')}</div>
     <button class="btn genis" data-s="slot-ekle">+ Ders saati ekle</button>
-    <label>Programın başladığı tarih<input type="date" name="baslangic" value="${v.baslangic || bugun()}"></label>
+    <label>Programın başladığı tarih<input type="date" name="baslangic" value="${v.baslangic || bugun()}"><span class="tarih-yazi">${tarihYaz(v.baslangic || bugun())}</span></label>
     <label>Not<input name="not" value="${esc(v.not || '')}" placeholder="Örn. 8. sınıf, matematik"></label>
     <button class="btn ana genis" data-s="kaydet">${o ? 'Kaydet' : 'Öğrenciyi ekle'}</button>
     ${o && o.aktif !== false ? '<button class="btn genis" data-s="arsivle">Ders almayı bıraktı → arşive kaldır</button><p class="kucuk-yazi">Arşive kaldırılan öğrenci programdan çıkar; tüm dersleri, ödemeleri ve notları arşivde saklanır. İstediğin zaman geri alınabilir.</p>' : ''}

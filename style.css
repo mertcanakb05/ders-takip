@@ -238,11 +238,20 @@ table.tablo { width: 100%; border-collapse: collapse; background: var(--kart); b
 details.duzenle { margin-top: 16px; background: var(--kart); border-radius: 12px; padding: 12px 14px; }
 details.duzenle summary { font-weight: 600; color: var(--ana); cursor: pointer; }
 
-.slot { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr 34px; gap: 6px; align-items: end; margin-top: 8px; }
-.slot input, .slot select { padding: 9px 6px; font-size: 15px; margin: 0; }
-.slot select { padding-right: 18px; background-position: calc(100% - 12px) 50%, calc(100% - 7px) 50%; }
-.slot .sil-x { height: 42px; color: #dc2626; font-size: 22px; }
-.slot-baslik { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr 34px; gap: 6px; font-size: 12px; color: var(--soluk); margin-top: 12px; }
+/* Haftalık ders saati satırı: üstte gün + ücret + sil, altta başlangıç – bitiş */
+.slot { display: grid; grid-template-columns: 1fr 110px 34px; gap: 6px 8px; align-items: center; margin-top: 10px; padding: 10px; background: var(--kart); border-radius: 12px; border: 1px solid var(--cizgi); }
+.slot input, .slot select { padding: 9px 8px; font-size: 16px; margin: 0; }
+.slot .sil-x { height: 42px; color: #dc2626; font-size: 24px; }
+.slot-saat { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; }
+.slot-saat .tire { color: var(--soluk); }
+
+/* 24 saatlik saat seçici */
+.saat-sec { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; }
+.saat-sec select { width: auto; min-width: 62px; margin: 0; padding: 10px 24px 10px 10px; font-variant-numeric: tabular-nums;
+  background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%; }
+.saat-sec b { color: var(--soluk); }
+label > .saat-sec { display: flex; }
+.tarih-yazi { display: block; margin-top: 4px; font-size: 14px; color: var(--ana); font-weight: 600; }
 
 /* Bildirim */
 #toast {
