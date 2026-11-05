@@ -239,14 +239,14 @@ function dersSatiri(d, { tarihli = false } = {}) {
     const yap = d.durum === 'yapildi', od = odendiMi(d);
     hizli = `<div class="ikili">
       <button class="tus tus-yapildi ${yap ? 'acik' : ''}" data-hizli="ders" data-id="${d.id}" aria-pressed="${yap}"><span class="i">${yap ? '✓' : '–'}</span>${yap ? 'Yapıldı' : 'Yapılmadı'}</button>
-      <button class="tus tus-odendi ${od ? 'acik' : yap ? 'bekliyor' : ''}" data-hizli="odeme" data-id="${d.id}" aria-pressed="${od}"><span class="i">₺</span>${od ? (yap ? 'Ödendi' : 'Peşin') : 'Ödenmedi'}</button>
+      <button class="tus tus-odendi ${od ? 'acik' : yap ? 'bekliyor' : ''}" data-hizli="odeme" data-id="${d.id}" aria-pressed="${od}"><span class="i">₺</span>${d.ucret === 0 ? 'Ücretsiz' : od ? (yap ? 'Ödendi' : 'Peşin') : 'Ödenmedi'}</button>
     </div>`;
   }
 
   return `<div class="ders d-${d.durum}" data-ders="${d.id}">
     <div class="d-saat"><b>${d.bas}</b><span>${d.bit}</span></div>
     <div class="d-orta"><div class="d-ad">${esc(o.ad)}</div>
-      <div class="d-alt">${tarihli ? `<span>${tarihYaz(d.tarih)}</span>` : ''}<span>${tl(d.ucret)}</span>${rozet}</div>
+      <div class="d-alt">${tarihli ? `<span>${tarihYaz(d.tarih)}</span>` : ''}<span>${d.ucret === 0 ? 'Ücretsiz' : tl(d.ucret)}</span>${rozet}</div>
       ${d.not ? `<div class="d-not">${esc(d.not)}</div>` : ''}</div>
     ${hizli}</div>`;
 }
@@ -450,7 +450,7 @@ function sAyarlar() {
 
   <h3 class="bolum">Diğer</h3>
   <button class="btn tehlike genis" data-act="tum-sil">Tüm verileri sil</button>
-  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 1.8</p>`;
+  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 1.9</p>`;
   return { baslik: 'Ayarlar', html: h };
 }
 
