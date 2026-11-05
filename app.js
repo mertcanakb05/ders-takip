@@ -124,66 +124,80 @@ function isaretlenmemis() {
   return out;
 }
 
-/* Bakiye: ödemeler − yapılan derslerin ücreti.
-   Bir derse bağlı ödeme (dersId) önce o derse yazılır; kalan ödemeler en eski dersten başlayarak dağıtılır.
-   Artan para (peşin bakiye) sıradaki planlı dersleri karşılar. */
+/* Gün listesi önbelleği (her çizimde sıfırlanır) */
+const GC = new Map();
+const gunDersleriC = t => { if (!GC.has(t)) GC.set(t, gunDersleri(t)); return GC.get(t); };
+
+/* Bakiye ve ödeme dağıtımı (öğrenci başına):
+   - Bakiye = ödemeler − yapılan derslerin ücreti.
+   - Bir derse bağlı ödeme (dersId) önce o derse yazılır.
+   - Kalan ödemeler, tarih sırasıyla önce yapılan derslere (en eskiden), sonra planlı derslere dağıtılır.
+   - Her ders hangi ödemeyle karşılandığını bilir; birden fazla dersi karşılayan ya da dersten önce
+     yapılan ödeme "önden ödeme" sayılır ve derslerine 1/N, 2/N … sırası verilir. */
 const HC = new Map();
 function H(oid) {
   if (HC.has(oid)) return HC.get(oid);
-  const o = ogr(oid);
-  const odemeler = db.odemeler.filter(p => p.ogrenciId === oid);
+  const o = ogr(oid), b = bugun();
+  const odemeler = db.odemeler.filter(p => p.ogrenciId === oid).sort((x, y) => x.tarih.localeCompare(y.tarih));
   const odenen = odemeler.reduce((a, p) => a + p.tutar, 0);
   const yapilan = db.dersler.filter(d => d.ogrenciId === oid && d.durum === 'yapildi').sort(sirala);
   const borc = yapilan.reduce((a, d) => a + d.ucret, 0);
-  const kalan = new Map(yapilan.map(d => [d.id, d.ucret]));
-  const rezerv = new Map();
-  let serbest = 0;
+  // Planlı dersler (gerçek + programdan gelen), bugünün 60 gün öncesinden 90 gün sonrasına
+  const planli = [];
+  for (let t = addDays(b, -60); t <= addDays(b, 90); t = addDays(t, 1))
+    for (const x of gunDersleriC(t)) if (x.ogrenciId === oid && x.durum === 'planlandi') planli.push(x);
+  const sira = [...yapilan, ...planli];
+  const kalan = new Map(sira.map(d => [d.id, d.ucret]));   // dersin karşılanmamış tutarı
+  const kaynak = new Map();                                  // ders → onu karşılayan (ilk) ödeme
+  const kuyruk = [];
   for (const p of odemeler) {
-    const d = p.dersId && db.dersler.find(x => x.id === p.dersId);
-    if (d && d.durum === 'yapildi') {
-      const k = kalan.get(d.id), a = Math.min(p.tutar, k);
-      kalan.set(d.id, k - a); serbest += p.tutar - a;
-    } else if (d && d.durum === 'planlandi') rezerv.set(d.id, (rezerv.get(d.id) || 0) + p.tutar);
-    else serbest += p.tutar;
+    let m = p.tutar;
+    if (p.dersId && kalan.has(p.dersId)) {
+      const a = Math.min(m, kalan.get(p.dersId));
+      if (a > 0) { kalan.set(p.dersId, kalan.get(p.dersId) - a); kaynak.set(p.dersId, p); }
+      m -= a;
+    }
+    if (m > 0) kuyruk.push({ p, m });
   }
-  const odenmis = new Set(), odenmemis = [];
-  for (const d of yapilan) {
-    const k = kalan.get(d.id);
-    if (k <= 0) { odenmis.add(d.id); continue; }
-    if (serbest >= k) { serbest -= k; kalan.set(d.id, 0); odenmis.add(d.id); }
-    else { kalan.set(d.id, k - serbest); serbest = 0; odenmemis.push(d); }
+  let qi = 0;
+  for (const d of sira) {
+    let k = kalan.get(d.id);
+    while (k > 0 && qi < kuyruk.length) {
+      const q = kuyruk[qi], a = Math.min(k, q.m);
+      if (!kaynak.has(d.id)) kaynak.set(d.id, q.p);
+      k -= a; q.m -= a; if (q.m <= 0) qi++;
+    }
+    kalan.set(d.id, k);
+  }
+  const odenmis = new Set(), pesin = new Set(), odenmemis = [];
+  for (const d of yapilan) (kalan.get(d.id) <= 0 ? odenmis.add(d.id) : odenmemis.push(d));
+  for (const d of planli) if (kalan.get(d.id) <= 0) pesin.add(d.id);
+  // Önden ödeme blokları
+  const gruplar = new Map();
+  for (const d of sira) {
+    const p = kaynak.get(d.id);
+    if (!p || kalan.get(d.id) > 0 || d.ucret === 0) continue;
+    if (!gruplar.has(p.id)) gruplar.set(p.id, { p, l: [] });
+    gruplar.get(p.id).l.push(d);
+  }
+  const blok = new Map();
+  for (const { p, l } of gruplar.values()) {
+    l.sort(sirala);
+    // Önden ödeme: ilk dersten önce ya da o gün alınmış ve (birden fazla dersi kapsıyor ya da dersten önce alınmış)
+    if (p.tarih > l[0].tarih || !(l.length >= 2 || p.tarih < l[0].tarih)) continue;
+    const N = Math.max(l.length, p.paketDers || 0), yap = l.filter(d => d.durum === 'yapildi').length;
+    l.forEach((d, i) => blok.set(d.id, { k: i + 1, N, yapildi: yap, odeme: p }));
   }
   const prog = o?.program || [];
   const birim = prog[0]?.ucret || yapilan.at(-1)?.ucret || 0;
   const haftalik = prog.reduce((a, s) => a + s.ucret, 0);
-  const r = { bakiye: odenen - borc, odenmis, odenmemis, kalan, rezerv, serbest, birim, haftalik, pesin: null };
+  const r = { bakiye: odenen - borc, odenmis, odenmemis, pesin, kalan, blok, birim, haftalik };
   HC.set(oid, r); return r;
 }
-/* Gün listesi önbelleği (her çizimde sıfırlanır) */
-const GC = new Map();
-const gunDersleriC = t => { if (!GC.has(t)) GC.set(t, gunDersleri(t)); return GC.get(t); };
-/* Planlı ders peşin ödenmiş mi? (derse bağlı ödeme ya da artan bakiye) */
-function pesinMi(d) {
-  const h = H(d.ogrenciId);
-  if ((h.rezerv.get(d.id) || 0) >= d.ucret) return true;
-  if (!h.pesin) {
-    h.pesin = new Set();
-    let s = h.serbest;
-    const b = bugun();
-    for (let t = addDays(b, -60); t <= addDays(b, 90) && s > 0; t = addDays(t, 1)) {
-      for (const x of gunDersleriC(t)) {
-        if (x.ogrenciId !== d.ogrenciId || x.durum !== 'planlandi') continue;
-        const ihtiyac = x.ucret - (h.rezerv.get(x.id) || 0);
-        if (ihtiyac <= 0) continue;
-        if (s >= ihtiyac) { s -= ihtiyac; h.pesin.add(x.id); } else { s = 0; break; }
-      }
-    }
-  }
-  return h.pesin.has(d.id);
-}
 function odendiMi(d) {
-  if (d.durum === 'yapildi') return H(d.ogrenciId).odenmis.has(d.id);
-  if (d.durum === 'planlandi') return pesinMi(d);
+  const h = H(d.ogrenciId);
+  if (d.durum === 'yapildi') return h.odenmis.has(d.id);
+  if (d.durum === 'planlandi') return h.pesin.has(d.id);
   return false;
 }
 /* Paket öğrencilerinde her yapılan derse "3/8" gibi sıra numarası. */
@@ -232,10 +246,11 @@ function renkTonu(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(
 
 function dersSatiri(d, { tarihli = false } = {}) {
   const o = ogr(d.ogrenciId); if (!o) return '';
-  const pe = paketEt(o.id);
   let rozet = '';
-  if (pe[d.id]) rozet = `<span class="rozet gri">Paket ${pe[d.id]}</span>`;
   if (d.tur === 'degerlendirme') rozet = '<span class="rozet mavi">Değerlendirme</span>';
+  // Önden ödeme: "Önden ödeme · 7/8 (6 yapıldı)"
+  const bl = (d.durum === 'yapildi' || d.durum === 'planlandi') && H(o.id).blok.get(d.id);
+  const onden = bl ? `<div class="d-onden"><b>Önden ödeme · ${bl.k}/${bl.N}</b> <span>(${bl.yapildi} yapıldı)</span></div>` : '';
   if (d.durum === 'iptal') rozet = '<span class="rozet gri">İptal</span>';
   else if (d.durum === 'ertelendi') {
     const n = db.dersler.find(x => x.id === d.ertelemeId);
@@ -254,7 +269,7 @@ function dersSatiri(d, { tarihli = false } = {}) {
 
   return `<div class="ders d-${d.durum}" data-ders="${d.id}">
     <div class="d-saat"><b>${d.bas}</b><span>${d.bit}</span></div>
-    <div class="d-orta"><div class="d-ad">${esc(o.ad)}</div>
+    <div class="d-orta"><div class="d-ad">${esc(o.ad)}</div>${onden}
       <div class="d-alt">${tarihli ? `<span>${tarihYaz(d.tarih)}</span>` : ''}<span>${d.ucret === 0 ? 'Ücretsiz' : tl(d.ucret)}</span>${rozet}</div>
       ${d.not ? `<div class="d-not">${esc(d.not)}</div>` : ''}</div>
     ${hizli}</div>`;
@@ -459,7 +474,7 @@ function sAyarlar() {
 
   <h3 class="bolum">Diğer</h3>
   <button class="btn tehlike genis" data-act="tum-sil">Tüm verileri sil</button>
-  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.0</p>`;
+  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.1</p>`;
   return { baslik: 'Ayarlar', html: h };
 }
 
@@ -502,12 +517,13 @@ function degistir(fn, msg) {
 /* Ders detayı */
 function dersSheet(id) {
   const d = dersBul(id); if (!d) return;
-  const o = ogr(d.ogrenciId), h = H(o.id), pe = paketEt(o.id);
+  const o = ogr(d.ogrenciId), h = H(o.id), bl = h.blok.get(d.id);
   let x = `<div class="bilgi">
     <div><span>Saat</span><b>${d.bas}–${d.bit}</b></div>
-    <div><span>Ücret</span><b>${tl(d.ucret)}</b></div>
+    <div><span>Ücret</span><b>${d.ucret === 0 ? 'Ücretsiz' : tl(d.ucret)}</b></div>
     <div><span>Durum</span><b>${DURUM[d.durum]}</b></div>
-    ${d.durum === 'yapildi' || d.durum === 'planlandi' ? `<div><span>Ödeme</span><b>${odendiMi(d) ? (d.durum === 'yapildi' ? 'Ödendi ✓' : 'Peşin ödendi ✓') : 'Ödenmedi'}${pe[d.id] ? ' · paket ' + pe[d.id] : ''}</b></div>` : ''}
+    ${(d.durum === 'yapildi' || d.durum === 'planlandi') && d.ucret > 0 ? `<div><span>Ödeme</span><b>${odendiMi(d) ? (d.durum === 'yapildi' ? 'Ödendi ✓' : 'Peşin ödendi ✓') : 'Ödenmedi'}</b></div>` : ''}
+    ${bl ? `<div><span>Önden ödeme</span><b>${bl.k}/${bl.N} · ${bl.yapildi} yapıldı, ${bl.N - bl.yapildi} kaldı<br><small style="font-weight:400;color:var(--soluk)">${tarihYaz(bl.odeme.tarih, false)} · ${tl(bl.odeme.tutar)} ${YONTEM[bl.odeme.yontem]}</small></b></div>` : ''}
     ${d.not ? `<div><span>Not</span><b>${esc(d.not)}</b></div>` : ''}</div>`;
   if (d.durum === 'planlandi') x += `<div class="aksiyonlar"><button class="btn yesil" data-s="yapildi">✓ Yapıldı</button><button class="btn" data-s="iptal">İptal</button><button class="btn" data-s="ertele">Ertele</button></div>`;
   else if (d.durum === 'ertelendi') x += `<div class="aksiyonlar"><button class="btn" data-s="ertele-geri">Ertelemeyi geri al</button></div>`;
@@ -854,7 +870,7 @@ document.addEventListener('click', e => {
       degistir(() => { db.odemeler = db.odemeler.filter(p => p.dersId !== d.id); }, `${o.ad} · ${gun} · ödeme kaldırıldı`);
     } else if (o.odemeDuzeni === 'paket') odemeSheet({ ogrenciId: o.id });
     else {
-      const h = H(o.id), tutar = d.durum === 'yapildi' ? (h.kalan.get(d.id) ?? d.ucret) : d.ucret - (h.rezerv.get(d.id) || 0);
+      const h = H(o.id), tutar = h.kalan.get(d.id) ?? d.ucret;
       const tarih = d.tarih < bugun() ? d.tarih : bugun();
       degistir(() => {
         const a = gercekle(d);
