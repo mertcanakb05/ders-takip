@@ -1,5 +1,5 @@
 // Çevrimdışı çalışma: önce ağdan dener (güncellemeler hemen gelsin), ağ yoksa önbellekten açar.
-const ONBELLEK = 'ders-takip-v12';
+const ONBELLEK = 'ders-takip-v13';
 const DOSYALAR = ['./', './index.html', './arsiv.html', './app.js', './style.css', './manifest.webmanifest', './icon-180.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

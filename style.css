@@ -110,7 +110,7 @@ main { padding: 4px 14px 24px; max-width: 640px; margin: 0 auto; }
 .d-ad { font-weight: 600; font-size: 16px; }
 .d-alt { font-size: 13px; color: var(--soluk); display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; margin-top: 2px; }
 .d-not { font-size: 13px; color: var(--soluk); font-style: italic; margin-top: 2px; }
-.d-onden { font-size: 12px; color: var(--yesil); margin-top: 1px; }
+.d-onden { font-size: 10.5px; color: var(--yesil); margin-top: 1px; letter-spacing: .1px; }
 .d-onden b { font-weight: 600; white-space: nowrap; }
 .d-onden span { font-weight: 500; opacity: .85; white-space: nowrap; }
 .d-iptal .d-ad, .d-ertelendi .d-ad { text-decoration: line-through; color: var(--soluk); }

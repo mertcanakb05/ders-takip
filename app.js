@@ -250,7 +250,7 @@ function dersSatiri(d, { tarihli = false } = {}) {
   if (d.tur === 'degerlendirme') rozet = '<span class="rozet mavi">Değerlendirme</span>';
   // Önden ödeme: "Önden ödeme · 7/8 (6 yapıldı)"
   const bl = (d.durum === 'yapildi' || d.durum === 'planlandi') && H(o.id).blok.get(d.id);
-  const onden = bl ? `<div class="d-onden"><b>Önden ödeme · ${bl.k}/${bl.N}</b> <span>(${bl.yapildi} yapıldı)</span></div>` : '';
+  const onden = bl ? `<div class="d-onden"><b>önden ödeme · ${bl.k}/${bl.N}</b> <span>(${bl.yapildi} yapıldı)</span></div>` : '';
   if (d.durum === 'iptal') rozet = '<span class="rozet gri">İptal</span>';
   else if (d.durum === 'ertelendi') {
     const n = db.dersler.find(x => x.id === d.ertelemeId);
@@ -474,7 +474,7 @@ function sAyarlar() {
 
   <h3 class="bolum">Diğer</h3>
   <button class="btn tehlike genis" data-act="tum-sil">Tüm verileri sil</button>
-  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.1</p>`;
+  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.2</p>`;
   return { baslik: 'Ayarlar', html: h };
 }
 
