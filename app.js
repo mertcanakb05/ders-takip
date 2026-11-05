@@ -201,8 +201,8 @@ function dersSatiri(d, { tarihli = false } = {}) {
   if (d.durum === 'planlandi' || d.durum === 'yapildi') {
     const yap = d.durum === 'yapildi', od = odendiMi(d);
     hizli = `<div class="ikili">
-      <button class="tus tus-yapildi ${yap ? 'acik' : ''}" data-hizli="ders" data-id="${d.id}" aria-pressed="${yap}"><span class="i">✓</span>Yapıldı</button>
-      <button class="tus tus-odendi ${od ? 'acik' : yap ? 'bekliyor' : ''}" data-hizli="odeme" data-id="${d.id}" aria-pressed="${od}"><span class="i">₺</span>${od && !yap ? 'Peşin' : 'Ödendi'}</button>
+      <button class="tus tus-yapildi ${yap ? 'acik' : ''}" data-hizli="ders" data-id="${d.id}" aria-pressed="${yap}"><span class="i">${yap ? '✓' : '–'}</span>${yap ? 'Yapıldı' : 'Yapılmadı'}</button>
+      <button class="tus tus-odendi ${od ? 'acik' : yap ? 'bekliyor' : ''}" data-hizli="odeme" data-id="${d.id}" aria-pressed="${od}"><span class="i">₺</span>${od ? (yap ? 'Ödendi' : 'Peşin') : 'Ödenmedi'}</button>
     </div>`;
   }
 
@@ -406,7 +406,7 @@ function sAyarlar() {
 
   <h3 class="bolum">Diğer</h3>
   <button class="btn tehlike genis" data-act="tum-sil">Tüm verileri sil</button>
-  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 1.2</p>`;
+  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 1.3</p>`;
   return { baslik: 'Ayarlar', html: h };
 }
 
