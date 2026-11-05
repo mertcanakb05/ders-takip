@@ -54,7 +54,7 @@ function gunDersleri(t) {
   const g = dow(t);
   const list = db.dersler.filter(x => x.tarih === t && ogr(x.ogrenciId));
   for (const o of db.ogrenciler) {
-    if (o.aktif === false) continue;
+    if (o.aktif === false && (!o.ayrilis || t >= o.ayrilis)) continue;
     if (o.baslangic && t < o.baslangic) continue;
     for (const s of o.program) {
       if (s.gun !== g) continue;
@@ -201,8 +201,8 @@ function dersSatiri(d, { tarihli = false } = {}) {
   if (d.durum === 'planlandi' || d.durum === 'yapildi') {
     const yap = d.durum === 'yapildi', od = odendiMi(d);
     hizli = `<div class="ikili">
-      <button class="tus ders ${yap ? 'acik' : ''}" data-hizli="ders" data-id="${d.id}" aria-pressed="${yap}"><span class="i">✓</span>Yapıldı</button>
-      <button class="tus para ${od ? 'acik' : yap ? 'bekliyor' : ''}" data-hizli="odeme" data-id="${d.id}" aria-pressed="${od}"><span class="i">₺</span>${od && !yap ? 'Peşin' : 'Ödendi'}</button>
+      <button class="tus tus-yapildi ${yap ? 'acik' : ''}" data-hizli="ders" data-id="${d.id}" aria-pressed="${yap}"><span class="i">✓</span>Yapıldı</button>
+      <button class="tus tus-odendi ${od ? 'acik' : yap ? 'bekliyor' : ''}" data-hizli="odeme" data-id="${d.id}" aria-pressed="${od}"><span class="i">₺</span>${od && !yap ? 'Peşin' : 'Ödendi'}</button>
     </div>`;
   }
 
@@ -295,7 +295,7 @@ function sOgrenciler() {
   const akt = db.ogrenciler.filter(o => o.aktif !== false).sort(adSirala);
   const pas = db.ogrenciler.filter(o => o.aktif === false).sort(adSirala);
   let h = akt.length ? `<div class="liste" style="margin-top:8px">${akt.map(ogrSatiri).join('')}</div>` : '<div class="bos" style="margin-top:8px">Henüz öğrenci yok.</div>';
-  if (pas.length) h += `<h3 class="bolum">Ders almayı bırakanlar</h3><div class="liste">${pas.map(ogrSatiri).join('')}</div>`;
+  if (pas.length) h += `<h3 class="bolum">Arşiv · ders almayı bırakanlar</h3><p class="ipucu">Tüm geçmiş dersleri ve ödemeleri saklanıyor. Görmek için dokun.</p><div class="liste">${pas.map(ogrSatiri).join('')}</div>`;
   h += `<button class="btn ana genis" data-act="ogr-yeni" style="margin-top:18px">+ Yeni öğrenci ekle</button>`;
   return { baslik: 'Öğrenciler', html: h, sag: '<button class="ust-btn" data-act="ogr-yeni">+ Ekle</button>' };
 }
@@ -309,10 +309,14 @@ function sOgrenci(o) {
     ust = `<div class="bakiye yesil"><span>${o.odemeDuzeni === 'paket' ? 'Paketten kalan' : 'Peşin ödenmiş'}</span><b>${o.odemeDuzeni === 'paket' ? k + ' ders' : tl(h.bakiye)}</b><small>${o.odemeDuzeni === 'paket' ? tl(h.bakiye) + ' peşin bakiye' : k ? k + ' dersi karşılıyor' : ''}</small></div>`;
   } else ust = `<div class="bakiye gri"><span>Hesap</span><b>${o.odemeDuzeni === 'paket' ? 'Paket bitti' : 'Borç yok'}</b><small>${o.odemeDuzeni === 'paket' ? 'Yeni paket ödemesi alınabilir' : 'Yapılan tüm derslerin ödemesi alındı'}</small></div>`;
 
+  if (o.aktif === false) {
+    const a = o.ayrilis ? parse(o.ayrilis) : null;
+    ust = `<div class="arsiv-kutu">🗄 <b>Arşivde</b>${a ? ` · ${a.getDate()} ${AY[a.getMonth()]} ${a.getFullYear()} tarihinde ders almayı bıraktı` : ''}. Tüm geçmişi aşağıda.
+      <button class="btn genis" data-act="arsivden-cikar">Arşivden çıkar (derslere yeniden başladı)</button></div>` + ust;
+  }
   let x = ust + `<div class="dortlu">
     <button class="btn" data-act="odeme-ogr"><span class="ikon">₺</span>Ödeme</button>
     <button class="btn" data-act="ders-ogr"><span class="ikon">＋</span>Ders ekle</button>
-    <button class="btn" data-act="hatirlat"><span class="ikon">✉</span>Hatırlat</button>
     <button class="btn" data-act="ogr-duzenle"><span class="ikon">✎</span>Düzenle</button></div>`;
 
   x += `<h3 class="bolum">Bilgiler</h3><div class="bilgi">
@@ -391,15 +395,7 @@ function sKasa() {
 function sAyarlar() {
   const a = db.ayarlar;
   const s = a.sonYedek ? new Date(a.sonYedek) : null;
-  const h = `<h3 class="bolum">Bilgilerim</h3>
-  <div class="bilgi" style="padding:2px 14px 14px">
-    <label>Adım (hatırlatma mesajlarının sonunda yazar)<input id="ay-ad" value="${esc(a.ad)}" placeholder="Adın"></label>
-    <label>IBAN (IBAN ile ödeyenlere mesajda gönderilir)<input id="ay-iban" value="${esc(a.iban)}" placeholder="TR.."></label>
-    <label>Hesap sahibinin adı<input id="ay-ibanad" value="${esc(a.ibanAd || '')}" placeholder="Ad Soyad"></label>
-    <button class="btn ana genis" data-act="ayar-kaydet">Kaydet</button>
-  </div>
-
-  <h3 class="bolum">Yedek</h3>
+  const h = `<h3 class="bolum">Yedek</h3>
   <div class="bilgi"><div><span>Son yedek</span><b>${s ? `${s.getDate()} ${AY[s.getMonth()]} ${s.getFullYear()}` : 'Hiç alınmadı'}</b></div>
   <div><span>Kayıtlar</span><b>${db.ogrenciler.length} öğrenci · ${db.dersler.length} ders · ${db.odemeler.length} ödeme</b></div></div>
   <p class="kucuk-yazi">Veriler sadece bu telefonda durur. Haftada bir yedek alıp "Dosyalar"a (iCloud Drive) kaydet ya da kendine WhatsApp'tan gönder. Telefon değişirse yedek dosyası yeni telefonda "Yedekten geri yükle" ile açılır.</p>
@@ -410,7 +406,7 @@ function sAyarlar() {
 
   <h3 class="bolum">Diğer</h3>
   <button class="btn tehlike genis" data-act="tum-sil">Tüm verileri sil</button>
-  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 1.1</p>`;
+  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 1.2</p>`;
   return { baslik: 'Ayarlar', html: h };
 }
 
@@ -528,7 +524,7 @@ function erteleSheet(d, o) {
 
 /* Ekstra ders */
 function dersYeniSheet(ogrenciId = null) {
-  const akt = db.ogrenciler.filter(o => o.aktif !== false).sort(adSirala);
+  const akt = db.ogrenciler.filter(o => o.aktif !== false || o.id === ogrenciId).sort(adSirala);
   if (!akt.length) return toast('Önce öğrenci ekle');
   const sec = ogrenciId || akt[0].id;
   sheet('Ekstra ders ekle', `
@@ -637,9 +633,9 @@ function ogrSheet(id = null) {
     <button class="btn genis" data-s="slot-ekle">+ Ders saati ekle</button>
     <label>Programın başladığı tarih<input type="date" name="baslangic" value="${v.baslangic || bugun()}"></label>
     <label>Not<input name="not" value="${esc(v.not || '')}" placeholder="Örn. 8. sınıf, matematik"></label>
-    ${o ? `<label class="onay"><input type="checkbox" name="aktif" ${o.aktif !== false ? 'checked' : ''}> Ders almaya devam ediyor</label>` : ''}
     <button class="btn ana genis" data-s="kaydet">${o ? 'Kaydet' : 'Öğrenciyi ekle'}</button>
-    ${o ? '<button class="btn tehlike genis" data-s="sil">Öğrenciyi ve tüm kayıtlarını sil</button>' : ''}`, g => {
+    ${o && o.aktif !== false ? '<button class="btn genis" data-s="arsivle">Ders almayı bıraktı → arşive kaldır</button><p class="kucuk-yazi">Arşive kaldırılan öğrenci programdan çıkar; tüm dersleri, ödemeleri ve notları arşivde saklanır. İstediğin zaman geri alınabilir.</p>' : ''}
+    ${o && kayitSayisi(o.id) === 0 ? '<button class="btn tehlike genis" data-s="sil">Öğrenciyi sil (hiç kaydı yok)</button>' : ''}`, g => {
     let yon = v.yontem;
     const seg = () => $$('#og-yon button', g).forEach(b => b.classList.toggle('secili', b.dataset.v === yon));
     $$('#og-yon button', g).forEach(b => b.onclick = () => { yon = b.dataset.v; seg(); }); seg();
@@ -662,52 +658,41 @@ function ogrSheet(id = null) {
       const yeni = {
         ad, veliAd: $('[name=veliAd]', g).value.trim(), telefon: $('[name=telefon]', g).value.trim(),
         odemeDuzeni: $('[name=duzen]', g).value, paketDers: Math.max(1, Math.round(sayi($('[name=paketDers]', g).value)) || 8),
-        yontem: yon, baslangic: $('[name=baslangic]', g).value || bugun(), not: $('[name=not]', g).value.trim(), program,
-        aktif: o ? $('[name=aktif]', g).checked : true
+        yontem: yon, baslangic: $('[name=baslangic]', g).value || bugun(), not: $('[name=not]', g).value.trim(), program
       };
+      if (!o) yeni.aktif = true;
       kapat();
       degistir(() => { if (o) Object.assign(ogr(o.id), yeni); else db.ogrenciler.push({ id: uid(), ...yeni }); }, o ? `${ad} güncellendi` : `${ad} eklendi`);
     };
+    const ars = $('[data-s=arsivle]', g);
+    if (ars) ars.onclick = () => {
+      if (!confirm(`${o.ad} arşive kaldırılsın mı?\n\nBugünden sonraki dersleri programdan çıkar. Geçmiş dersleri, ödemeleri ve notları silinmez, arşivde saklanır.`)) return;
+      kapat(); arsivle(o.id, true);
+    };
     const sil = $('[data-s=sil]', g);
     if (sil) sil.onclick = () => {
-      if (!confirm(`${o.ad} ve tüm ders/ödeme kayıtları silinsin mi? (Ders almayı bıraktıysa silmek yerine "Ders almaya devam ediyor" işaretini kaldırman yeterli.)`)) return;
+      if (!confirm(`${o.ad} silinsin mi? Bu öğrencinin hiç ders veya ödeme kaydı yok.`)) return;
       kapat(); E.ogrenci = null;
-      degistir(() => {
-        db.ogrenciler = db.ogrenciler.filter(x => x.id !== o.id);
-        db.dersler = db.dersler.filter(x => x.ogrenciId !== o.id);
-        db.odemeler = db.odemeler.filter(x => x.ogrenciId !== o.id);
-      }, `${o.ad} silindi`);
+      degistir(() => { db.ogrenciler = db.ogrenciler.filter(x => x.id !== o.id); }, `${o.ad} silindi`);
     };
   });
 }
 
-/* WhatsApp hatırlatma */
-function telNorm(t) {
-  let d = String(t || '').replace(/\D/g, '');
-  if (d.startsWith('0')) d = '9' + d;
-  else if (d.length === 10 && d.startsWith('5')) d = '90' + d;
-  return d;
-}
-function hatirlatSheet(o) {
-  const h = H(o.id), a = db.ayarlar, N = o.paketDers || 8;
-  let m;
-  if (h.bakiye < 0) m = `Merhaba, ${o.ad} için ${h.odenmemis.map(d => tarihYaz(d.tarih, false)).join(', ')} tarihli ders${h.odenmemis.length > 1 ? 'lerin' : 'in'} ücreti olan ${tl(-h.bakiye)} ödemesini hatırlatmak isterim.`;
-  else if (o.odemeDuzeni === 'paket') {
-    const k = h.birim ? Math.floor(h.bakiye / h.birim) : 0;
-    m = `Merhaba, ${o.ad} için aldığımız ${N} derslik paket${k > 0 ? `in bitmesine ${k} ders kaldı` : ' tamamlandı'}. Yeni ${N} derslik paket ücreti ${tl(N * h.birim)}.`;
-  } else m = `Merhaba, ${o.ad} için bu haftanın ders ücreti ${tl(h.haftalik)}.`;
-  if (o.yontem === 'iban' && a.iban) m += `\n\nIBAN: ${a.iban}${a.ibanAd ? `\nAlıcı: ${a.ibanAd}` : ''}`;
-  m += `\n\nTeşekkürler${a.ad ? ', ' + a.ad : ''}`;
-  sheet(`${o.ad} · hatırlatma`, `
-    <p class="ipucu" style="margin:4px 0 0">Mesajı düzenleyebilirsin. ${o.telefon ? 'WhatsApp\'ta veliyle sohbet açılır.' : 'Veli telefonu kayıtlı değil; WhatsApp\'ta kişiyi kendin seçeceksin.'}</p>
-    <textarea rows="8" name="mesaj">${esc(m)}</textarea>
-    ${o.yontem === 'iban' && !a.iban ? '<p class="kucuk-yazi">İpucu: IBAN\'ını Ayarlar\'a yazarsan mesaja otomatik eklenir.</p>' : ''}
-    <button class="btn ana genis" data-s="wa">WhatsApp'ta aç</button>
-    <button class="btn genis" data-s="kopyala">Mesajı kopyala</button>`, g => {
-    const txt = () => $('[name=mesaj]', g).value;
-    $('[data-s=wa]', g).onclick = () => { const t = telNorm(o.telefon); location.href = `https://wa.me/${t}?text=${encodeURIComponent(txt())}`; };
-    $('[data-s=kopyala]', g).onclick = async () => { try { await navigator.clipboard.writeText(txt()); toast('Mesaj kopyalandı'); } catch { toast('Kopyalanamadı'); } };
-  });
+/* Arşiv: öğrenci silinmez, programdan çıkar; tüm geçmişi saklanır */
+const kayitSayisi = oid => db.dersler.filter(d => d.ogrenciId === oid).length + db.odemeler.filter(p => p.ogrenciId === oid).length;
+function arsivle(oid, arsive) {
+  const o = ogr(oid), b = bugun();
+  degistir(() => {
+    const x = ogr(oid);
+    if (arsive) {
+      x.aktif = false; x.ayrilis = b;
+      // bugünden sonraki, henüz işaretlenmemiş telafi/ekstra dersler kaldırılır; geçmiş kayıtlar kalır
+      db.dersler = db.dersler.filter(d => !(d.ogrenciId === oid && d.durum === 'planlandi' && d.tarih >= b && d.kaynak !== 'program'));
+    } else {
+      x.aktif = true; delete x.ayrilis;
+      if (!x.baslangic || x.baslangic < b) x.baslangic = b;
+    }
+  }, arsive ? `${o.ad} arşive kaldırıldı — geçmişi saklandı` : `${o.ad} arşivden çıkarıldı, programa geri döndü`);
 }
 
 /* ---------- yedek ---------- */
@@ -792,13 +777,10 @@ document.addEventListener('click', e => {
     case 'ders-yeni': dersYeniSheet(); break;
     case 'odeme-ogr': odemeSheet({ ogrenciId: o.id }); break;
     case 'ders-ogr': dersYeniSheet(o.id); break;
-    case 'hatirlat': hatirlatSheet(o); break;
     case 'ogr-duzenle': ogrSheet(o.id); break;
     case 'ogr-yeni': ogrSheet(); break;
     case 'tum-gecmis': E.tumGecmis = true; render(); break;
-    case 'ayar-kaydet':
-      Object.assign(db.ayarlar, { ad: $('#ay-ad').value.trim(), iban: $('#ay-iban').value.trim(), ibanAd: $('#ay-ibanad').value.trim() });
-      kaydet(); toast('Kaydedildi'); break;
+    case 'arsivden-cikar': arsivle(o.id, false); break;
     case 'yedek-al': yedekAl(); break;
     case 'yedek-kopyala': yedekKopyala(); break;
     case 'ice-aktar-dosya': iceAktarDosya(); break;

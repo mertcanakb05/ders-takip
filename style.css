@@ -115,19 +115,24 @@ main { padding: 4px 14px 24px; max-width: 640px; margin: 0 auto; }
 /* Yan yana iki düğme: Yapıldı / Ödendi (defterdeki "+ +") */
 .ikili { flex: none; display: flex; gap: 6px; }
 .tus {
-  width: 60px; height: 52px; border-radius: 12px;
+  flex: 0 0 62px; width: 62px; height: 54px; min-height: 0; padding: 0; margin: 0; border-radius: 12px;
+  -webkit-appearance: none; appearance: none;
   border: 2px solid var(--cizgi); color: var(--soluk); background: transparent;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
   font-size: 11px; font-weight: 600; transition: background .15s, color .15s, border-color .15s;
 }
 .tus .i { font-size: 18px; line-height: 20px; font-weight: 700; }
 .tus:active { transform: scale(.94); }
-.tus.ders { border-color: var(--ana); color: var(--ana); }
-.tus.ders.acik { background: var(--ana); color: #fff; }
-.tus.para { border-style: dashed; }
-.tus.para.bekliyor { border: 2px solid var(--kirmizi); color: var(--kirmizi); }
-.tus.para.acik { border: 2px solid var(--yesil); background: var(--yesil); color: #fff; }
-@media (prefers-color-scheme: dark) { .tus.ders.acik, .tus.para.acik { color: #000; } }
+.tus-yapildi { border-color: var(--ana); color: var(--ana); }
+.tus-yapildi.acik { background: var(--ana); color: #fff; }
+.tus-odendi { border-style: dashed; }
+.tus-odendi.bekliyor { border-style: solid; border-color: var(--kirmizi); color: var(--kirmizi); }
+.tus-odendi.acik { border-style: solid; border-color: var(--yesil); background: var(--yesil); color: #fff; }
+@media (prefers-color-scheme: dark) { .tus-yapildi.acik, .tus-odendi.acik { color: #000; } }
+
+/* Arşiv */
+.arsiv-kutu { margin-top: 8px; padding: 12px 14px; border-radius: 12px; background: var(--gri-acik); color: var(--soluk); font-size: 14px; }
+.arsiv-kutu b { color: var(--yazi); }
 
 /* Rozetler */
 .rozet { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
@@ -172,7 +177,7 @@ main { padding: 4px 14px 24px; max-width: 640px; margin: 0 auto; }
 .btn.kucuk { padding: 8px 14px; font-size: 18px; }
 .btn.genis { width: 100%; margin-top: 12px; }
 .buton-satiri { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
-.dortlu { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+.dortlu { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
 .dortlu .btn { flex-direction: column; font-size: 12px; padding: 10px 4px; gap: 2px; }
 .dortlu .btn .ikon { font-size: 20px; }
 .aksiyonlar { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; margin-top: 14px; }
