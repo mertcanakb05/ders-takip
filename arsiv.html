@@ -138,7 +138,7 @@ function ciz() {
     <tbody>${ayAnahtar.map(k => { const a = aylar[k]; return `<tr><td>${ayAd(k)}</td><td class="s">${a.n}</td><td class="s gz">${a.iptal || ''}</td><td class="s">${tl(a.ders)}</td><td class="s gz">${tl(a.elden)}</td><td class="s gz">${tl(a.iban)}</td><td class="s"><b>${tl(a.elden + a.iban)}</b></td></tr>`; }).join('')}</tbody></table></div>`;
 
   h += `<h2>Öğrenciler</h2><div class="tablo-kap"><table>
-    <thead><tr><th>Öğrenci</th><th class="gz">Durum</th><th class="gz">Ödeme</th><th class="s">Ders</th><th class="s gz">Ders tutarı</th><th class="s">Ödenen</th><th class="s">Bakiye</th></tr></thead>
+    <thead><tr><th>Öğrenci</th><th class="gz">Durum</th><th class="gz">Ödeme</th><th class="s">Yapılan ders</th><th class="s gz">Ders tutarı</th><th class="s">Ödenen</th><th class="s">Bakiye</th></tr></thead>
     <tbody>${ogrSatir.map(r => `<tr><td class="sar"><b>${esc(r.o.ad)}</b>${r.o.aktif === false ? ' <span class="etiket dar">arşiv</span>' : ''}</td><td class="gz">${r.o.aktif === false ? `<span class="etiket">Arşivde${r.o.ayrilis ? ' · ' + tarih(r.o.ayrilis) : ''}</span>` : 'Aktif'}</td><td class="gz">${DUZEN[r.o.odemeDuzeni] || ''} · ${YONTEM[r.o.yontem] || ''}</td><td class="s">${r.n}</td><td class="s gz">${tl(r.ders)}</td><td class="s">${tl(r.odenen)}</td><td class="s">${bakiyeYaz(r.bakiye)}</td></tr>`).join('')}</tbody>
     <tfoot><tr><td>Toplam</td><td class="gz"></td><td class="gz"></td><td class="s">${top(ogrSatir, r => r.n)}</td><td class="s gz">${tl(top(ogrSatir, r => r.ders))}</td><td class="s">${tl(top(ogrSatir, r => r.odenen))}</td><td></td></tr></tfoot></table></div>`;
 

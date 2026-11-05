@@ -445,12 +445,12 @@ function sAyarlar() {
   <p class="kucuk-yazi">Veriler sadece bu telefonda durur. Haftada bir yedek alıp "Dosyalar"a (iCloud Drive) kaydet ya da kendine WhatsApp'tan gönder. Telefon değişirse yedek dosyası yeni telefonda "Yedekten geri yükle" ile açılır.</p>
   <button class="btn ana genis" data-act="yedek-al">Yedek al (dosya olarak paylaş)</button>
   <button class="btn genis" data-act="yedek-kopyala">Yedeği metin olarak kopyala</button>
-  <button class="btn genis" data-act="ice-aktar-dosya">Yedekten geri yükle (dosya)</button>
+  <button class="btn genis" data-act="ice-aktar-dosya">Dosyadan yükle (yedek ya da eski kayıtlar)</button>
   <button class="btn genis" data-act="ice-aktar-metin">Yedekten geri yükle (metin yapıştır)</button>
 
   <h3 class="bolum">Diğer</h3>
   <button class="btn tehlike genis" data-act="tum-sil">Tüm verileri sil</button>
-  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 1.7</p>`;
+  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 1.8</p>`;
   return { baslik: 'Ayarlar', html: h };
 }
 
@@ -766,9 +766,44 @@ function iceAktar(txt) {
   let x;
   try { x = JSON.parse(String(txt).trim()); } catch { return toast('Okunamadı: geçerli bir yedek değil'); }
   if (!x || !Array.isArray(x.ogrenciler) || !Array.isArray(x.dersler) || !Array.isArray(x.odemeler)) return toast('Bu bir Ders Takip yedeği değil');
+  if (x.tur === 'ekleme') return birlestir(x);
   if (db && (db.ogrenciler.length || db.odemeler.length) && !confirm(`Bu telefondaki mevcut veriler silinecek, yerine yedekteki ${x.ogrenciler.length} öğrenci yüklenecek. Devam edilsin mi?`)) return;
   db = gocEt(x); kaydet(); kapat(); E.sekme = 'bugun'; E.ogrenci = null; render();
   toast(`${x.ogrenciler.length} öğrenci yüklendi`);
+}
+/* Eski kayıtları ekle: mevcut veriler silinmez.
+   - Öğrenci zaten varsa dokunulmaz, yoksa eklenir.
+   - Aynı öğrencinin aynı gündeki dersi zaten varsa o ders (ve ona bağlı ödeme) atlanır.
+   - Bağlı olmayan ödeme, aynı öğrenci + tarih + tutar varsa atlanır.
+   Eklemeden önce mevcut hali ayrıca saklanır; "Geri al" ile dönülebilir. */
+function birlestir(x) {
+  if (!db) db = gocEt(bosDb());
+  const varOgr = new Set(db.ogrenciler.map(o => o.id));
+  const gunAnahtar = new Set(db.dersler.map(d => d.ogrenciId + '|' + d.tarih));
+  const idVar = new Set([...db.dersler.map(d => d.id), ...db.odemeler.map(p => p.id)]);
+  const yeniOgr = x.ogrenciler.filter(o => !varOgr.has(o.id) && !o.sadeceVeli);
+  // Mevcut öğrencide sadece boş veli adı doldurulur, başka bilgiye dokunulmaz
+  const veliDoldur = x.ogrenciler.filter(o => varOgr.has(o.id) && o.veliAd && !ogr(o.id).veliAd);
+  const atlananDers = new Set();
+  const yeniDers = x.dersler.filter(d => {
+    if (idVar.has(d.id) || gunAnahtar.has(d.ogrenciId + '|' + d.tarih)) { atlananDers.add(d.id); return false; }
+    return true;
+  });
+  const yeniOdeme = x.odemeler.filter(p => {
+    if (idVar.has(p.id)) return false;
+    if (p.dersId) return !atlananDers.has(p.dersId);
+    return !db.odemeler.some(q => q.ogrenciId === p.ogrenciId && q.tarih === p.tarih && q.tutar === p.tutar);
+  });
+  const adlar = yeniOgr.map(o => o.ad).join(', ');
+  if (!confirm(`Eski kayıtlar eklenecek:\n\n• ${yeniOgr.length} yeni öğrenci${adlar ? ' (' + adlar + ')' : ''}\n• ${yeniDers.length} ders\n• ${yeniOdeme.length} ödeme${veliDoldur.length ? `\n• ${veliDoldur.length} öğrenciye veli adı` : ''}\n\n${atlananDers.size ? atlananDers.size + ' ders zaten kayıtlı olduğu için atlanacak.\n' : ''}Mevcut kayıtların hiçbiri silinmez. Devam edilsin mi?`)) return;
+  localStorage.setItem(KEY + '.eklemeOncesi', JSON.stringify(db));
+  kapat();
+  degistir(() => {
+    for (const o of yeniOgr) db.ogrenciler.push(gocEt({ ogrenciler: [o] }).ogrenciler[0]);
+    for (const o of veliDoldur) { const m = ogr(o.id); if (!m.veliAd) m.veliAd = o.veliAd; }
+    db.dersler.push(...yeniDers);
+    db.odemeler.push(...yeniOdeme);
+  }, `${yeniDers.length} eski ders ve ${yeniOdeme.length} ödeme eklendi`);
 }
 function metinSheet() {
   sheet('Metinden yükle', `<p class="ipucu" style="margin:4px 0 0">Kurulum veya yedek metnini aşağıya yapıştır.</p>
