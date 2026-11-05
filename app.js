@@ -406,7 +406,7 @@ function sAyarlar() {
 
   <h3 class="bolum">Diğer</h3>
   <button class="btn tehlike genis" data-act="tum-sil">Tüm verileri sil</button>
-  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 1.3</p>`;
+  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 1.4</p>`;
   return { baslik: 'Ayarlar', html: h };
 }
 
@@ -800,4 +800,16 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 
 render();
 navigator.storage?.persist?.();
-if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js');
+/* Güncelleme: uygulama açıldığında / öne geldiğinde yeni sürümü kontrol et, gelince sayfayı kendiliğinden yenile */
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  const vardi = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+    reg.update();
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update(); });
+  });
+  let yenilendi = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!vardi || yenilendi || $('#sheet').classList.contains('acik')) return;
+    yenilendi = true; location.reload();
+  });
+}
