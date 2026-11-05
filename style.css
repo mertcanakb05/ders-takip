@@ -112,14 +112,22 @@ main { padding: 4px 14px 24px; max-width: 640px; margin: 0 auto; }
 .d-iptal .d-ad, .d-ertelendi .d-ad { text-decoration: line-through; color: var(--soluk); }
 .d-yapildi .d-saat b { color: var(--yesil); }
 
-.hizli {
-  flex: none; width: 44px; height: 44px; border-radius: 50%;
-  border: 2px solid var(--ana); color: var(--ana); font-size: 20px; font-weight: 700;
-  display: grid; place-items: center;
+/* Yan yana iki düğme: Yapıldı / Ödendi (defterdeki "+ +") */
+.ikili { flex: none; display: flex; gap: 6px; }
+.tus {
+  width: 60px; height: 52px; border-radius: 12px;
+  border: 2px solid var(--cizgi); color: var(--soluk); background: transparent;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  font-size: 11px; font-weight: 600; transition: background .15s, color .15s, border-color .15s;
 }
-.hizli:active { background: var(--ana); color: #fff; }
-.hizli.para { border-color: var(--kirmizi); color: var(--kirmizi); }
-.hizli.para:active { background: var(--kirmizi); color: #fff; }
+.tus .i { font-size: 18px; line-height: 20px; font-weight: 700; }
+.tus:active { transform: scale(.94); }
+.tus.ders { border-color: var(--ana); color: var(--ana); }
+.tus.ders.acik { background: var(--ana); color: #fff; }
+.tus.para { border-style: dashed; }
+.tus.para.bekliyor { border: 2px solid var(--kirmizi); color: var(--kirmizi); }
+.tus.para.acik { border: 2px solid var(--yesil); background: var(--yesil); color: #fff; }
+@media (prefers-color-scheme: dark) { .tus.ders.acik, .tus.para.acik { color: #000; } }
 
 /* Rozetler */
 .rozet { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
