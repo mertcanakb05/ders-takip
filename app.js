@@ -35,11 +35,14 @@ function bosDb() { return { surum: 1, ayarlar: { ad: '', iban: '', ibanAd: '', s
 function gocEt(x) {
   x.ayarlar ||= {}; x.ogrenciler ||= []; x.dersler ||= []; x.odemeler ||= [];
   for (const o of x.ogrenciler) { o.program ||= []; o.odemeDuzeni ||= 'haftalik'; o.yontem ||= 'elden'; o.paketDers ||= 8; }
+  // Haftalık yedek hatırlatması bu tarihten sayılır (hiç yedek alınmadıysa)
+  x.ayarlar.yedekSayac ||= x.ayarlar.sonYedek || new Date().toISOString();
   return x;
 }
 let db = null;
 try { db = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { db = null; }
-if (db) gocEt(db);
+if (db && !db.ayarlar?.yedekSayac) { gocEt(db); localStorage.setItem(KEY, JSON.stringify(db)); }
+else if (db) gocEt(db);
 
 function kaydet() {
   db.degisti = new Date().toISOString();
@@ -227,10 +230,13 @@ function bakiyeRozet(o) {
 
 function yedekUyari() {
   if (!db.ogrenciler.length) return '';
-  const s = db.ayarlar.sonYedek;
-  const g = s ? Math.floor((Date.now() - new Date(s)) / 864e5) : Infinity;
+  const s = db.ayarlar.sonYedek, baz = s || db.ayarlar.yedekSayac;
+  if (!baz) { db.ayarlar.yedekSayac = new Date().toISOString(); localStorage.setItem(KEY, JSON.stringify(db)); return ''; }
+  const g = Math.floor((Date.now() - new Date(baz)) / 864e5);
   if (g < 7) return '';
-  return `<button class="uyari-kutu" data-act="yedek-al">⚠︎ ${s ? `Son yedek ${g} gün önce alındı.` : 'Henüz hiç yedek alınmadı.'} Telefon kaybolursa veriler gitmesin diye yedek almak için dokun.</button>`;
+  return `<div class="uyari-kutu">📦 <b>Haftalık yedek zamanı.</b> ${s ? `Son yedek ${g} gün önce alındı.` : ''}
+    <button class="btn ana genis" data-act="yedek-al">Şimdi yedek al</button>
+    <span class="kucuk-yazi" style="display:block;margin:8px 0 0">Açılan pencerede <b>"Dosyalar'a Kaydet"</b> → <b>iCloud Drive</b> seç.</span></div>`;
 }
 
 /* ---------- sayfalar ---------- */
@@ -406,7 +412,7 @@ function sAyarlar() {
 
   <h3 class="bolum">Diğer</h3>
   <button class="btn tehlike genis" data-act="tum-sil">Tüm verileri sil</button>
-  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 1.4</p>`;
+  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 1.5</p>`;
   return { baslik: 'Ayarlar', html: h };
 }
 
