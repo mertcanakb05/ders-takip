@@ -150,12 +150,14 @@ function H(oid) {
   const sira = [...yapilan, ...planli];
   const kalan = new Map(sira.map(d => [d.id, d.ucret]));   // dersin karşılanmamış tutarı
   const kaynak = new Map();                                  // ders → onu karşılayan (ilk) ödeme
+  const kapsam = new Map(odemeler.map(p => [p.id, []]));     // ödeme → [{ d: ders, a: tutar }]
+  const artan = new Map();                                   // ödeme → hiçbir derse dağıtılamayan kısım
   const kuyruk = [];
   for (const p of odemeler) {
     let m = p.tutar;
     if (p.dersId && kalan.has(p.dersId)) {
       const a = Math.min(m, kalan.get(p.dersId));
-      if (a > 0) { kalan.set(p.dersId, kalan.get(p.dersId) - a); kaynak.set(p.dersId, p); }
+      if (a > 0) { kalan.set(p.dersId, kalan.get(p.dersId) - a); kaynak.set(p.dersId, p); kapsam.get(p.id).push({ d: sira.find(x => x.id === p.dersId), a }); }
       m -= a;
     }
     if (m > 0) kuyruk.push({ p, m });
@@ -166,10 +168,12 @@ function H(oid) {
     while (k > 0 && qi < kuyruk.length) {
       const q = kuyruk[qi], a = Math.min(k, q.m);
       if (!kaynak.has(d.id)) kaynak.set(d.id, q.p);
+      kapsam.get(q.p.id).push({ d, a });
       k -= a; q.m -= a; if (q.m <= 0) qi++;
     }
     kalan.set(d.id, k);
   }
+  for (const q of kuyruk) if (q.m > 0) artan.set(q.p.id, q.m);
   const odenmis = new Set(), pesin = new Set(), odenmemis = [];
   for (const d of yapilan) (kalan.get(d.id) <= 0 ? odenmis.add(d.id) : odenmemis.push(d));
   for (const d of planli) if (kalan.get(d.id) <= 0) pesin.add(d.id);
@@ -192,7 +196,7 @@ function H(oid) {
   const prog = o?.program || [];
   const birim = prog[0]?.ucret || yapilan.at(-1)?.ucret || 0;
   const haftalik = prog.reduce((a, s) => a + s.ucret, 0);
-  const r = { bakiye: odenen - borc, odenmis, odenmemis, pesin, kalan, blok, birim, haftalik };
+  const r = { bakiye: odenen - borc, odenmis, odenmemis, pesin, kalan, blok, kapsam, artan, birim, haftalik };
   HC.set(oid, r); return r;
 }
 function odendiMi(d) {
@@ -326,27 +330,96 @@ function haftaAd(p) {
   const a = parse(p), b = parse(addDays(p, 6));
   return a.getMonth() === b.getMonth() ? `${a.getDate()}–${b.getDate()} ${AY[b.getMonth()]}` : `${a.getDate()} ${AY[a.getMonth()]} – ${b.getDate()} ${AY[b.getMonth()]}`;
 }
+/* Haftanın hesabı:
+   - toplam: haftadaki derslerin tutarı (iptal / ertelenen hariç; değerlendirme ücretsiz)
+   - tahsil: hafta içinde alınan ödemeler (önden ödemeler dahil)
+   - alacak: bu haftanın derslerinden henüz karşılanmamış tutar */
+function haftaHesap(p) {
+  const son = addDays(p, 6), dersler = [];
+  for (let i = 0; i < 7; i++) dersler.push(...gunDersleri(addDays(p, i)));
+  const gecerli = dersler.filter(d => d.durum === 'planlandi' || d.durum === 'yapildi');
+  const kalanTutar = d => d.ucret === 0 ? 0 : (H(d.ogrenciId).kalan.get(d.id) ?? d.ucret);
+  const odemeler = db.odemeler.filter(x => x.tarih >= p && x.tarih <= son && ogr(x.ogrenciId)).sort((a, b) => a.tarih.localeCompare(b.tarih));
+  return {
+    dersler, gecerli, odemeler, kalanTutar,
+    iptal: dersler.filter(d => d.durum === 'iptal'),
+    toplam: gecerli.reduce((a, d) => a + d.ucret, 0),
+    tahsil: odemeler.reduce((a, x) => a + x.tutar, 0),
+    alacak: gecerli.reduce((a, d) => a + kalanTutar(d), 0)
+  };
+}
+function hesapKart(tur, et, deger, alt, renk = '') {
+  return `<button class="kart ${renk}" data-act="hafta-detay" data-tur="${tur}"><span class="k-et">${et}</span><span class="k-deger">${deger}</span><span class="k-alt">${alt}</span><span class="k-detay">ayrıntı ›</span></button>`;
+}
 function sHafta() {
-  const p = E.hafta, son = addDays(p, 6), b = bugun();
-  let plan = 0, yap = 0, n = 0, toplamDers = 0;
+  const p = E.hafta, b = bugun();
   const govde = [...Array(7)].map((_, i) => {
     const t = addDays(p, i), l = gunDersleri(t);
-    for (const d of l) {
-      if (d.durum === 'planlandi' || d.durum === 'yapildi') { plan += d.ucret; toplamDers++; }
-      if (d.durum === 'yapildi') { yap += d.ucret; n++; }
-    }
     if (!l.length) return '';
     return `<h3 class="bolum ${t === b ? 'bugun' : ''}">${tarihYaz(t)}${t === b ? ' · bugün' : ''}</h3><div class="liste">${l.map(d => dersSatiri(d)).join('')}</div>`;
   }).join('');
-  const tah = db.odemeler.filter(x => x.tarih >= p && x.tarih <= son).reduce((a, x) => a + x.tutar, 0);
+  const hh = haftaHesap(p);
   const h = `<div class="hafta-nav">
       <button class="btn kucuk" data-act="hafta-onceki" aria-label="Önceki hafta">‹</button>
       <button class="hafta-ad" data-act="hafta-bu">${haftaAd(p)}${p === pazartesi(b) ? '' : '<br><small style="color:var(--ana);font-size:12px">Bu haftaya dön</small>'}</button>
       <button class="btn kucuk" data-act="hafta-sonraki" aria-label="Sonraki hafta">›</button></div>
-    <div class="kartlar uc">${kart('Beklenen', tl(plan), toplamDers + ' ders')}${kart('Yapılan', tl(yap), n + ' ders')}${kart('Tahsil edilen', tl(tah), 'bu hafta', 'yesil')}</div>
+    <div class="kartlar uc">
+      ${hesapKart('toplam', 'Haftanın toplamı', tl(hh.toplam), `${hh.gecerli.length} ders${hh.iptal.length ? ` · ${hh.iptal.length} iptal` : ''}`)}
+      ${hesapKart('tahsil', 'Tahsil edilen', tl(hh.tahsil), `${hh.odemeler.length} ödeme`, 'yesil')}
+      ${hesapKart('alacak', 'Kalan alacak', tl(hh.alacak), hh.alacak ? 'ödenmemiş' : 'hepsi ödendi', hh.alacak ? 'kirmizi' : '')}
+    </div>
     ${govde || '<div class="bos" style="margin-top:16px">Bu hafta ders yok.</div>'}
     <div class="buton-satiri"><button class="btn" data-act="ders-yeni">+ Ekstra ders</button><button class="btn" data-act="odeme-yeni">+ Ödeme kaydet</button></div>`;
   return { baslik: 'Haftalık program', html: h };
+}
+
+/* Haftalık kartların ayrıntısı */
+function haftaDetay(tur) {
+  const p = E.hafta, hh = haftaHesap(p);
+  const gunK = t => `${parse(t).getDate()} ${AY[parse(t).getMonth()].slice(0, 3)} ${GUNK[dow(t)]}`;
+  const satir = (sol, sag, alt = '', sinif = '') => `<div class="${sinif}"><span>${sol}${alt ? `<small>${alt}</small>` : ''}</span><b>${sag}</b></div>`;
+  let baslik, x;
+
+  if (tur === 'toplam') {
+    baslik = `Haftanın toplamı · ${haftaAd(p)}`;
+    x = `<p class="ipucu" style="margin:4px 0 10px">Bu haftaki derslerin toplam ücreti. İptal edilen ve başka güne ertelenen dersler hesaba katılmaz.</p>
+      <div class="bilgi detay">${hh.gecerli.map(d => satir(`${gunK(d.tarih)} ${d.bas} · ${esc(ogr(d.ogrenciId).ad)}`,
+        d.ucret === 0 ? 'Ücretsiz' : tl(d.ucret), d.tur === 'degerlendirme' ? 'Değerlendirme dersi' : d.durum === 'yapildi' ? 'Yapıldı' : 'Henüz yapılmadı')).join('') || satir('Bu hafta ders yok', '')}
+      ${satir('<b>Toplam</b>', tl(hh.toplam), '', 'toplam')}</div>`;
+    const disari = hh.dersler.filter(d => d.durum === 'iptal' || d.durum === 'ertelendi');
+    if (disari.length) x += `<h3 class="bolum">Hesaba katılmayanlar</h3><div class="bilgi detay">${disari.map(d => {
+      const n = d.durum === 'ertelendi' && db.dersler.find(z => z.id === d.ertelemeId);
+      return satir(`<s>${gunK(d.tarih)} ${d.bas} · ${esc(ogr(d.ogrenciId).ad)}</s>`, `<s>${tl(d.ucret)}</s>`, d.durum === 'iptal' ? 'İptal edildi' : `Ertelendi${n ? ` → ${gunK(n.tarih)} ${n.bas}` : ''}`);
+    }).join('')}</div>`;
+  }
+
+  else if (tur === 'tahsil') {
+    baslik = `Tahsil edilen · ${haftaAd(p)}`;
+    const elden = hh.odemeler.filter(o => o.yontem === 'elden').reduce((a, o) => a + o.tutar, 0);
+    x = `<p class="ipucu" style="margin:4px 0 10px">Bu hafta içinde alınan bütün ödemeler (önden ödemeler dahil). Ödemenin alındığı gün esas alınır; bu yüzden başka haftaların dersleri için alınan paralar da burada görünür. Her ödemenin altında hangi derslere sayıldığı yazar.</p>
+      <div class="bilgi detay">${hh.odemeler.map(o => {
+        const h = H(o.ogrenciId), k = h.kapsam.get(o.id) || [], ar = h.artan.get(o.id);
+        const dersler = k.map(({ d, a }) => `${gunK(d.tarih)}${d.durum === 'planlandi' ? ' (yapılmadı)' : ''} ${tl(a)}`).join(' · ');
+        const onden = k.some(({ d }) => d.tarih > o.tarih);
+        return satir(`${gunK(o.tarih)} · ${esc(ogr(o.ogrenciId).ad)} <span class="rozet ${o.yontem === 'iban' ? 'mavi' : 'gri'}">${YONTEM[o.yontem]}</span>${onden ? ' <span class="rozet yesil">önden</span>' : ''}`, tl(o.tutar),
+          `${dersler ? 'Karşıladığı dersler: ' + dersler : ''}${ar ? `${dersler ? '<br>' : ''}${tl(ar)} peşin bakiye olarak duruyor` : ''}${o.paketDers ? `<br>${o.paketDers} derslik paket` : ''}${o.not ? `<br>Not: ${esc(o.not)}` : ''}`);
+      }).join('') || satir('Bu hafta ödeme alınmadı', '')}
+      ${satir('Elden', tl(elden))}${satir('IBAN', tl(hh.tahsil - elden))}
+      ${satir('<b>Toplam</b>', tl(hh.tahsil), '', 'toplam')}</div>`;
+  }
+
+  else {
+    baslik = `Kalan alacak · ${haftaAd(p)}`;
+    const ogrler = {};
+    for (const d of hh.gecerli) { const k = hh.kalanTutar(d); if (k > 0) (ogrler[d.ogrenciId] ||= []).push({ d, k }); }
+    const sirali = Object.entries(ogrler).sort((a, b) => adSirala(ogr(a[0]), ogr(b[0])));
+    x = `<p class="ipucu" style="margin:4px 0 10px">Bu haftanın derslerinden ödemesi henüz alınmamış tutar. Yapılmamış dersler de dahil; onların parası genelde ders günü alınır.</p>`;
+    x += sirali.length ? sirali.map(([oid, l]) => `<h3 class="bolum" style="margin-top:14px">${esc(ogr(oid).ad)} · ${tl(l.reduce((a, z) => a + z.k, 0))}</h3>
+      <div class="bilgi detay">${l.map(({ d, k }) => satir(`${gunK(d.tarih)} ${d.bas}`, tl(k), `${d.durum === 'yapildi' ? 'Ders yapıldı, ödenmedi' : 'Ders henüz yapılmadı'}${k < d.ucret ? ` · ${tl(d.ucret - k)} kısmen ödendi` : ''}`)).join('')}</div>`).join('')
+      + `<div class="bilgi detay" style="margin-top:14px">${satir('<b>Toplam kalan alacak</b>', tl(hh.alacak), '', 'toplam')}</div>`
+      : '<div class="bos">Bu haftanın bütün dersleri ödendi.</div>';
+  }
+  sheet(baslik, x);
 }
 
 function ogrSatiri(o) {
@@ -475,7 +548,7 @@ function sAyarlar() {
 
   <h3 class="bolum">Diğer</h3>
   <button class="btn tehlike genis" data-act="tum-sil">Tüm verileri sil</button>
-  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.3</p>`;
+  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.4</p>`;
   return { baslik: 'Ayarlar', html: h };
 }
 
@@ -890,6 +963,7 @@ document.addEventListener('click', e => {
     case 'hafta-onceki': E.hafta = addDays(E.hafta, -7); render(); break;
     case 'hafta-sonraki': E.hafta = addDays(E.hafta, 7); render(); break;
     case 'hafta-bu': E.hafta = pazartesi(bugun()); render(); break;
+    case 'hafta-detay': haftaDetay(t.dataset.tur); break;
     case 'ay-onceki': case 'ay-sonraki': {
       const [y, m] = E.ay.split('-').map(Number), d = new Date(y, m - 1 + (t.dataset.act === 'ay-onceki' ? -1 : 1), 1);
       E.ay = ymd(d).slice(0, 7); render(); break;

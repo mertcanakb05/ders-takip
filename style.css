@@ -160,6 +160,14 @@ main { padding: 4px 14px 24px; max-width: 640px; margin: 0 auto; }
 .kartlar.uc .k-deger { font-size: 16px; }
 .k-alt { font-size: 12px; color: var(--soluk); }
 .kart.yesil .k-deger { color: var(--yesil); }
+.kart .k-detay { font-size: 11px; color: var(--ana); font-weight: 600; margin-top: 2px; }
+/* Döküm pencereleri */
+.bilgi.detay > div { align-items: flex-start; }
+.bilgi.detay span small { display: block; font-size: 12px; color: var(--soluk); margin-top: 2px; line-height: 1.35; }
+.bilgi.detay > div > span { color: var(--yazi); }
+.bilgi.detay b { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bilgi.detay .toplam { background: var(--gri-acik); }
+.bilgi.detay s { color: var(--soluk); }
 .kart.kirmizi .k-deger { color: var(--kirmizi); }
 
 /* Bakiye */
