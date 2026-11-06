@@ -157,10 +157,22 @@ main { padding: 4px 14px 24px; max-width: 640px; margin: 0 auto; }
 .kart { background: var(--kart); border-radius: 14px; padding: 12px; text-align: left; display: flex; flex-direction: column; gap: 2px; box-shadow: var(--golge); }
 .k-et { font-size: 12px; color: var(--soluk); }
 .k-deger { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.kartlar.uc .k-deger { font-size: 16px; }
+.kartlar.uc .k-deger { font-size: clamp(13px, 4.1vw, 16px); white-space: nowrap; }
+.kartlar.uc .kart { padding: 12px 10px; min-width: 0; }
 .k-alt { font-size: 12px; color: var(--soluk); }
 .kart.yesil .k-deger { color: var(--yesil); }
 .kart .k-detay { font-size: 11px; color: var(--ana); font-weight: 600; margin-top: 2px; }
+/* Hafta kartları: başlık, tutar, açıklama ve "ayrıntı" üç kartta da aynı hizada */
+.kartlar.uc .kart { line-height: 1.25; }
+.kartlar.uc .k-detay { margin-top: auto; padding-top: 6px; }
+@supports (grid-template-rows: subgrid) {
+  .kartlar.uc { grid-template-rows: auto auto auto auto; }
+  .kartlar.uc .kart { display: grid; grid-row: span 4; grid-template-rows: subgrid; row-gap: 3px; }
+  .kartlar.uc .k-et { align-self: start; }
+  .kartlar.uc .k-deger { align-self: end; }
+  .kartlar.uc .k-alt { align-self: start; }
+  .kartlar.uc .k-detay { margin-top: 0; align-self: end; }
+}
 /* Döküm pencereleri */
 .bilgi.detay > div { align-items: flex-start; }
 .bilgi.detay span small { display: block; font-size: 12px; color: var(--soluk); margin-top: 2px; line-height: 1.35; }
