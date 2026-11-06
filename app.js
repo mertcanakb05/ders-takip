@@ -373,7 +373,7 @@ function sHafta() {
   return { baslik: 'Haftalık program', html: h };
 }
 
-/* Program sekmesi: defterdeki "Haftalık Ders Planı" gibi saat çizelgesi (09–19) */
+/* Program sekmesi: defterdeki "Haftalık Ders Planı" gibi saat çizelgesi (10–20) */
 function sProgram() {
   const p = E.hafta, b = bugun();
   const dk = s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
@@ -381,7 +381,7 @@ function sProgram() {
   const pazarDers = gunDersleri(addDays(p, 6)).some(d => d.durum !== 'ertelendi');
   const gunler = [...Array(pazarDers ? 7 : 6)].map((_, i) => addDays(p, i));
   const hepsi = gunler.flatMap(t => gunDersleri(t));
-  let ilk = 9, son = 19;
+  let ilk = 10, son = 20;
   for (const d of hepsi) { ilk = Math.min(ilk, Math.floor(dk(d.bas) / 60)); son = Math.max(son, Math.ceil(dk(d.bit) / 60)); }
   // Her öğrenciye belirgin farklı bir renk; aynı ilk adı taşıyanlar "Öykü B." gibi ayrılır
   const TON = [205, 340, 145, 30, 270, 0, 185, 95, 300, 50, 230, 160];
@@ -408,7 +408,7 @@ function sProgram() {
   };
 
   const ust = gunler.map(t => `<div class="p-bas${t === b ? ' bugun' : ''}"><span>${GUNK[dow(t)]}</span><b>${parse(t).getDate()}</b></div>`).join('');
-  const sol = saatler.slice(0, -1).map(h => { const hh = String(h).padStart(2, '0'); return `<div style="height:${SY}px"><span>${hh}:00</span><span class="yarim">${hh}:30</span></div>`; }).join('');
+  const sol = saatler.slice(0, -1).map(h => { const hh = String(h).padStart(2, '0'); return `<div style="height:${SY}px"><span>${hh}:00</span><span class="yarim">${hh}:30</span></div>`; }).join('') + `<div style="height:0"><span>${String(son).padStart(2, '0')}:00</span></div>`;
   const gecerli = hepsi.filter(d => d.durum === 'planlandi' || d.durum === 'yapildi');
   const saat = gecerli.reduce((a, d) => a + dk(d.bit) - dk(d.bas), 0) / 60;
 
@@ -603,7 +603,7 @@ function sAyarlar() {
 
   <h3 class="bolum">Diğer</h3>
   <button class="btn tehlike genis" data-act="tum-sil">Tüm verileri sil</button>
-  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.9</p>`;
+  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.10</p>`;
   return { baslik: 'Ayarlar', html: h };
 }
 
