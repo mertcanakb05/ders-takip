@@ -377,7 +377,9 @@ function sHafta() {
 function sProgram() {
   const p = E.hafta, b = bugun();
   const dk = s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
-  const gunler = [...Array(7)].map((_, i) => addDays(p, i));
+  // Pazar gösterilmez; yalnızca o hafta Pazar günü ders varsa sütun eklenir
+  const pazarDers = gunDersleri(addDays(p, 6)).some(d => d.durum !== 'ertelendi');
+  const gunler = [...Array(pazarDers ? 7 : 6)].map((_, i) => addDays(p, i));
   const hepsi = gunler.flatMap(t => gunDersleri(t));
   let ilk = 9, son = 19;
   for (const d of hepsi) { ilk = Math.min(ilk, Math.floor(dk(d.bas) / 60)); son = Math.max(son, Math.ceil(dk(d.bit) / 60)); }
@@ -385,7 +387,7 @@ function sProgram() {
   const TON = [205, 340, 145, 30, 270, 0, 185, 95, 300, 50, 230, 160];
   const ton = new Map(db.ogrenciler.map((o, i) => [o.id, TON[i % TON.length]]));
   const kisaAd = o => { const [a, b2] = o.ad.split(' '); return b2 && db.ogrenciler.some(x => x !== o && x.ad.split(' ')[0] === a) ? `${a} ${b2[0]}.` : a; };
-  const SY = 46, px = m => (m - ilk * 60) * SY / 60;
+  const SY = 56, px = m => (m - ilk * 60) * SY / 60;
   const saatler = [...Array(son - ilk + 1)].map((_, i) => ilk + i);
 
   const kolon = t => {
@@ -406,7 +408,7 @@ function sProgram() {
   };
 
   const ust = gunler.map(t => `<div class="p-bas${t === b ? ' bugun' : ''}"><span>${GUNK[dow(t)]}</span><b>${parse(t).getDate()}</b></div>`).join('');
-  const sol = saatler.slice(0, -1).map(h => `<div style="height:${SY}px">${String(h).padStart(2, '0')}:00</div>`).join('');
+  const sol = saatler.slice(0, -1).map(h => { const hh = String(h).padStart(2, '0'); return `<div style="height:${SY}px"><span>${hh}:00</span><span class="yarim">${hh}:30</span></div>`; }).join('');
   const gecerli = hepsi.filter(d => d.durum === 'planlandi' || d.durum === 'yapildi');
   const saat = gecerli.reduce((a, d) => a + dk(d.bit) - dk(d.bas), 0) / 60;
 
@@ -415,8 +417,8 @@ function sProgram() {
       <button class="hafta-ad" data-act="hafta-bu">${haftaAd(p)}${p === pazartesi(b) ? '' : '<br><small style="color:var(--ana);font-size:12px">Bu haftaya dön</small>'}</button>
       <button class="btn kucuk" data-act="hafta-sonraki" aria-label="Sonraki hafta">›</button></div>
     <div class="plan">
-      <div class="p-ust"><div></div>${ust}</div>
-      <div class="p-govde" style="--sy:${SY}px">
+      <div class="p-ust" style="--g:${gunler.length}"><div></div>${ust}</div>
+      <div class="p-govde" style="--sy:${SY}px;--g:${gunler.length}">
         <div class="p-saatler">${sol}</div>
         ${gunler.map(kolon).join('')}
       </div>
@@ -601,7 +603,7 @@ function sAyarlar() {
 
   <h3 class="bolum">Diğer</h3>
   <button class="btn tehlike genis" data-act="tum-sil">Tüm verileri sil</button>
-  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.8</p>`;
+  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.9</p>`;
   return { baslik: 'Ayarlar', html: h };
 }
 
