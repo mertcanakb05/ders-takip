@@ -28,6 +28,13 @@
   td.s, th.s { text-align: right; font-variant-numeric: tabular-nums; }
   tfoot td { font-weight: 700; border-top: 2px solid #1c1c1e; border-bottom: 0; }
   .eksi { color: #b45309; font-weight: 600; }
+  .kisaca { background: #f2f7f6; border: 1px solid #cfe3df; border-radius: 12px; padding: 14px 16px; margin-top: 14px; line-height: 1.55; }
+  .kisaca h3 { margin: 0 0 6px; font-size: 15px; }
+  .kisaca p { margin: 6px 0; }
+  .kisaca ul { margin: 6px 0; padding-left: 20px; }
+  .kisaca li { margin: 3px 0; }
+  .kisaca .hesap { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cfe3df; font-variant-numeric: tabular-nums; }
+  .aciklama { color: #6e6e73; font-size: 13.5px; margin: -4px 0 10px; line-height: 1.5; }
   .arti { color: #15803d; font-weight: 600; }
   .gri { color: #8e8e93; }
   .ustu-cizili { text-decoration: line-through; color: #8e8e93; }
@@ -122,6 +129,25 @@ function ciz() {
   for (const p of odemeler) ay(p.tarih.slice(0, 7))[p.yontem === 'iban' ? 'iban' : 'elden'] += p.tutar;
   const ayAnahtar = Object.keys(aylar).sort().reverse();
 
+  // Rakamları düz cümleyle anlatır: ders tutarı ile tahsilat neden farklı?
+  function kisaca() {
+    const dt = top(yapilan, d => d.ucret), th = top(odemeler, p => p.tutar), fark = th - dt;
+    const ps = ogrSatir.filter(r => r.bakiye > 0).sort((a, b) => b.bakiye - a.bakiye);
+    const bs = ogrSatir.filter(r => r.bakiye < 0).sort((a, b) => a.bakiye - b.bakiye);
+    let x = `<div class="kisaca"><h3>Kısaca</h3>
+      <p>Bugüne kadar <b>${yapilan.length} ders</b> yapıldı, ücretleri toplamı <b>${tl(dt)}</b>. Eline geçen para <b>${tl(th)}</b>.</p>`;
+    if (!fark && !ps.length && !bs.length) return x + '<p>İkisi eşit: herkes yaptığı derslerin parasını tam ödemiş, kimsenin borcu ya da önden ödemesi yok.</p></div>';
+    x += fark > 0 ? `<p>Yani eline geçen para, yapılan derslerden <b>${tl(fark)} fazla</b>. Bunun sebebi:</p>`
+      : fark < 0 ? `<p>Yani eline geçen para, yapılan derslerden <b>${tl(-fark)} az</b>. Bunun sebebi:</p>`
+      : '<p>İki rakam eşit, ama arada birbirini götüren önden ödemeler ve borçlar var:</p>';
+    x += '<ul>' + ps.map(r => `<li><b>${esc(r.o.ad)}</b>: <span class="arti">${tl(r.bakiye)} önden ödedi</span>. Bu paranın dersleri henüz yapılmadı.</li>`).join('')
+      + bs.map(r => `<li><b>${esc(r.o.ad)}</b>: <span class="eksi">${tl(-r.bakiye)} borcu var</span>. Ders yapıldı, parası henüz alınmadı.</li>`).join('') + '</ul>';
+    const parca = [...ps.map(r => tl(r.bakiye).replace(' TL', '')), ...bs.map(r => '− ' + tl(-r.bakiye).replace(' TL', ''))];
+    const yazi = parca.map((p, i) => i === 0 ? p.replace('− ', '−') : p.startsWith('− ') ? ' ' + p : ' + ' + p).join('');
+    x += `<p class="hesap">Hesap: ${yazi} = <b>${fark < 0 ? '−' : ''}${tl(Math.abs(fark))}</b> fark.</p>`;
+    return x + '</div>';
+  }
+
   const guncel = db.degisti ? new Date(db.degisti) : null;
   const bakiyeYaz = b => b < 0 ? `<span class="eksi">${tl(-b)} alacak</span>` : b > 0 ? `<span class="arti">${tl(b)} peşin</span>` : '<span class="gri">—</span>';
 
@@ -132,16 +158,17 @@ function ciz() {
   h += `<h2>Genel durum</h2><div class="ozet">
     <div><span>Öğrenci</span><b>${aktif} aktif</b>${db.ogrenciler.length - aktif ? ` <span>+ ${db.ogrenciler.length - aktif} arşivde</span>` : ''}</div>
     <div><span>Yapılan ders (toplam)</span><b>${yapilan.length}</b>${ucretsiz ? ` <span>${ucretsiz} tanesi değerlendirme dersi (ücretsiz)</span>` : ''}</div>
-    <div><span>Ders tutarı (toplam)</span><b>${tl(top(yapilan, d => d.ucret))}</b></div>
-    <div><span>Tahsil edilen (toplam)</span><b>${tl(top(odemeler, p => p.tutar))}</b></div>
-    <div><span>Şu anki alacak</span><b class="${alacak ? 'eksi' : ''}">${tl(alacak)}</b></div>
-    <div><span>Peşin alınmış</span><b>${tl(pesin)}</b></div></div>`;
+    <div><span>Ders tutarı (toplam)</span><b>${tl(top(yapilan, d => d.ucret))}</b><span>yapılan derslerin ücreti</span></div>
+    <div><span>Tahsil edilen (toplam)</span><b>${tl(top(odemeler, p => p.tutar))}</b><span>eline geçen bütün para</span></div>
+    <div><span>Şu anki alacak</span><b class="${alacak ? 'eksi' : ''}">${tl(alacak)}</b><span>ders yapıldı, para alınmadı</span></div>
+    <div><span>Peşin alınmış</span><b>${tl(pesin)}</b><span>para alındı, ders henüz yapılmadı</span></div></div>`;
+  h += kisaca();
 
-  h += `<h2>Aylık özet</h2><div class="tablo-kap"><table>
+  h += `<h2>Aylık özet</h2><p class="aciklama">Her ay için: o ay yapılan derslerin ücreti ve o ay eline geçen para. Bir ayın iki rakamı farklı olabilir; çünkü bazı paralar dersten önce (önden ödeme) ya da sonraki ay alınır.</p><div class="tablo-kap"><table>
     <thead><tr><th>Ay</th><th class="s">Ders</th><th class="s gz">İptal</th><th class="s">Ders tutarı</th><th class="s gz">Elden</th><th class="s gz">IBAN</th><th class="s">Tahsilat</th></tr></thead>
     <tbody>${ayAnahtar.map(k => { const a = aylar[k]; return `<tr><td>${ayAd(k)}</td><td class="s">${a.n}</td><td class="s gz">${a.iptal || ''}</td><td class="s">${tl(a.ders)}</td><td class="s gz">${tl(a.elden)}</td><td class="s gz">${tl(a.iban)}</td><td class="s"><b>${tl(a.elden + a.iban)}</b></td></tr>`; }).join('')}</tbody></table></div>`;
 
-  h += `<h2>Öğrenciler</h2><div class="tablo-kap"><table>
+  h += `<h2>Öğrenciler</h2><p class="aciklama">Her öğrenci için: yapılan derslerin ücreti ve ödediği toplam para. <b>Bakiye</b> ikisinin farkı: <span class="arti">peşin</span> = önden ödemiş, <span class="eksi">alacak</span> = borcu var.</p><div class="tablo-kap"><table>
     <thead><tr><th>Öğrenci</th><th class="gz">Durum</th><th class="gz">Ödeme</th><th class="s">Yapılan ders</th><th class="s gz">Ders tutarı</th><th class="s">Ödenen</th><th class="s">Bakiye</th></tr></thead>
     <tbody>${ogrSatir.map(r => `<tr><td class="sar"><b>${esc(r.o.ad)}</b>${r.o.aktif === false ? ' <span class="etiket dar">arşiv</span>' : ''}</td><td class="gz">${r.o.aktif === false ? `<span class="etiket">Arşivde${r.o.ayrilis ? ' · ' + tarih(r.o.ayrilis) : ''}</span>` : 'Aktif'}</td><td class="gz">${DUZEN[r.o.odemeDuzeni] || ''} · ${YONTEM[r.o.yontem] || ''}</td><td class="s">${r.n}</td><td class="s gz">${tl(r.ders)}</td><td class="s">${tl(r.odenen)}</td><td class="s">${bakiyeYaz(r.bakiye)}</td></tr>`).join('')}</tbody>
     <tfoot><tr><td>Toplam</td><td class="gz"></td><td class="gz"></td><td class="s">${top(ogrSatir, r => r.n)}</td><td class="s gz">${tl(top(ogrSatir, r => r.ders))}</td><td class="s">${tl(top(ogrSatir, r => r.odenen))}</td><td></td></tr></tfoot></table></div>`;
