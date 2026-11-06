@@ -434,8 +434,8 @@ function sOgrenciler() {
   const pas = db.ogrenciler.filter(o => o.aktif === false).sort(adSirala);
   let h = akt.length ? `<div class="liste" style="margin-top:8px">${akt.map(ogrSatiri).join('')}</div>` : '<div class="bos" style="margin-top:8px">Henüz öğrenci yok.</div>';
   if (pas.length) h += `<h3 class="bolum">Arşiv · ders almayı bırakanlar</h3><p class="ipucu">Tüm geçmiş dersleri ve ödemeleri saklanıyor. Görmek için dokun.</p><div class="liste">${pas.map(ogrSatiri).join('')}</div>`;
-  h += `<button class="btn ana genis" data-act="ogr-yeni" style="margin-top:18px">+ Yeni öğrenci ekle</button>`;
-  return { baslik: 'Öğrenciler', html: h, sag: '<button class="ust-btn" data-act="ogr-yeni">+ Ekle</button>' };
+  h += `<button class="btn ana genis" data-act="ogr-yeni" style="margin-top:18px"><span class="arti">+</span>Yeni öğrenci ekle</button>`;
+  return { baslik: 'Öğrenciler', html: h, sag: '<button class="ust-btn" data-act="ogr-yeni"><span class="arti">+</span>Ekle</button>' };
 }
 
 function sOgrenci(o) {
@@ -454,7 +454,7 @@ function sOgrenci(o) {
   }
   let x = ust + `<div class="dortlu">
     <button class="btn" data-act="odeme-ogr"><span class="ikon">₺</span>Ödeme</button>
-    <button class="btn" data-act="ders-ogr"><span class="ikon">＋</span>Ders ekle</button>
+    <button class="btn" data-act="ders-ogr"><span class="ikon"><span class="arti buyuk">+</span></span>Ders ekle</button>
     <button class="btn" data-act="ogr-duzenle"><span class="ikon">✎</span>Düzenle</button></div>`;
 
   x += `<h3 class="bolum">Bilgiler</h3><div class="bilgi">
@@ -548,7 +548,7 @@ function sAyarlar() {
 
   <h3 class="bolum">Diğer</h3>
   <button class="btn tehlike genis" data-act="tum-sil">Tüm verileri sil</button>
-  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.5</p>`;
+  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.6</p>`;
   return { baslik: 'Ayarlar', html: h };
 }
 
@@ -789,7 +789,7 @@ function ogrSheet(id = null) {
     <label>Ödeme yöntemi</label><div class="segment" id="og-yon"><button data-v="elden">Elden</button><button data-v="iban">IBAN</button></div>
     <h3 class="bolum" style="margin-top:20px">Haftalık ders saatleri</h3>
     <div id="slotlar">${v.program.map(slotHtml).join('')}</div>
-    <button class="btn genis" data-s="slot-ekle">+ Ders saati ekle</button>
+    <button class="btn genis" data-s="slot-ekle"><span class="arti">+</span>Ders saati ekle</button>
     <label>Programın başladığı tarih<input type="date" name="baslangic" value="${v.baslangic || bugun()}"><span class="tarih-yazi">${tarihYaz(v.baslangic || bugun())}</span></label>
     <label>Not<input name="not" value="${esc(v.not || '')}" placeholder="Örn. 8. sınıf, matematik"></label>
     <button class="btn ana genis" data-s="kaydet">${o ? 'Kaydet' : 'Öğrenciyi ekle'}</button>
