@@ -373,16 +373,18 @@ function sHafta() {
   return { baslik: 'Haftalık program', html: h };
 }
 
-/* Program sekmesi: defterdeki "Haftalık Ders Planı" gibi saat çizelgesi (10–20) */
+/* Plan sekmesi: sabit haftalık ders programı (defterdeki "Haftalık Ders Planı" gibi).
+   Haftaya bağlı değildir; öğrencilerin kayıtlı ders saatlerini gösterir.
+   İptal ya da erteleme buradaki programı değiştirmez. */
 function sProgram() {
-  const p = E.hafta, b = bugun();
+  const bg = dow(bugun());
   const dk = s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
-  // Pazar gösterilmez; yalnızca o hafta Pazar günü ders varsa sütun eklenir
-  const pazarDers = gunDersleri(addDays(p, 6)).some(d => d.durum !== 'ertelendi');
-  const gunler = [...Array(pazarDers ? 7 : 6)].map((_, i) => addDays(p, i));
-  const hepsi = gunler.flatMap(t => gunDersleri(t));
+  const aktif = db.ogrenciler.filter(o => o.aktif !== false);
+  const slotlar = aktif.flatMap(o => o.program.map(s => ({ ...s, o })));
+  // Pazar gösterilmez; Pazar'a kayıtlı ders saati varsa sütun eklenir
+  const gunler = slotlar.some(s => s.gun === 7) ? [1, 2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5, 6];
   let ilk = 10, son = 20;
-  for (const d of hepsi) { ilk = Math.min(ilk, Math.floor(dk(d.bas) / 60)); son = Math.max(son, Math.ceil(dk(d.bit) / 60)); }
+  for (const s of slotlar) { ilk = Math.min(ilk, Math.floor(dk(s.bas) / 60)); son = Math.max(son, Math.ceil(dk(s.bit) / 60)); }
   // Her öğrenciye belirgin farklı bir renk; aynı ilk adı taşıyanlar "Öykü B." gibi ayrılır
   const TON = [205, 340, 145, 30, 270, 0, 185, 95, 300, 50, 230, 160];
   const ton = new Map(db.ogrenciler.map((o, i) => [o.id, TON[i % TON.length]]));
@@ -390,42 +392,34 @@ function sProgram() {
   const SY = 56, px = m => (m - ilk * 60) * SY / 60;
   const saatler = [...Array(son - ilk + 1)].map((_, i) => ilk + i);
 
-  const kolon = t => {
-    const l = gunDersleri(t).filter(d => d.durum !== 'ertelendi');
-    // Çakışan dersler yan yana bölünür
+  const kolon = g => {
+    const l = slotlar.filter(s => s.gun === g).sort((a, b) => a.bas.localeCompare(b.bas));
+    // Çakışan saatler yan yana bölünür
     const serit = [], sira = new Map();
-    for (const d of l) { let i = serit.findIndex(s => s <= dk(d.bas)); if (i < 0) { i = serit.length; serit.push(0); } serit[i] = dk(d.bit); sira.set(d.id, i); }
+    for (const s of l) { let i = serit.findIndex(x => x <= dk(s.bas)); if (i < 0) { i = serit.length; serit.push(0); } serit[i] = dk(s.bit); sira.set(s, i); }
     const n = Math.max(1, serit.length);
-    const bloklar = l.map(d => {
-      const o = ogr(d.ogrenciId), ad = kisaAd(o);
-      const top = px(dk(d.bas)), h = Math.max(22, px(dk(d.bit)) - top);
-      const isaret = d.durum === 'yapildi' ? ' ✓' : '';
-      return `<button class="pb p-${d.durum}${d.tur === 'degerlendirme' ? ' p-deg' : ''}" data-ders="${d.id}" style="--h:${ton.get(o.id)};top:${top}px;height:${h - 2}px;left:calc(${sira.get(d.id) * 100 / n}% + 1px);width:calc(${100 / n}% - 2px)">
-        <b${ad.replace(/ .*/, "").length > 6 ? ' class="uzun"' : ""}>${esc(ad)}</b><span>${d.bas}${isaret}</span></button>`;
+    const bloklar = l.map(s => {
+      const ad = kisaAd(s.o), top = px(dk(s.bas)), h = Math.max(22, px(dk(s.bit)) - top);
+      return `<button class="pb" data-ogr="${s.o.id}" style="--h:${ton.get(s.o.id)};top:${top}px;height:${h - 2}px;left:calc(${sira.get(s) * 100 / n}% + 1px);width:calc(${100 / n}% - 2px)">
+        <b${ad.replace(/ .*/, '').length > 6 ? ' class="uzun"' : ''}>${esc(ad)}</b><span>${s.bas}–</span><span>${s.bit}</span></button>`;
     }).join('');
-    const simdi = t === b ? (() => { const n2 = new Date(), m = n2.getHours() * 60 + n2.getMinutes(); return m >= ilk * 60 && m <= son * 60 ? `<div class="p-simdi" style="top:${px(m)}px"></div>` : ''; })() : '';
-    return `<div class="p-gun${t === b ? ' bugun' : ''}" style="height:${(son - ilk) * SY}px">${bloklar}${simdi}</div>`;
+    return `<div class="p-gun${g === bg ? ' bugun' : ''}" style="height:${(son - ilk) * SY}px">${bloklar}</div>`;
   };
 
-  const ust = gunler.map(t => `<div class="p-bas${t === b ? ' bugun' : ''}"><span>${GUNK[dow(t)]}</span><b>${parse(t).getDate()}</b></div>`).join('');
+  const ust = gunler.map(g => `<div class="p-bas${g === bg ? ' bugun' : ''}"><b>${GUNK[g]}</b></div>`).join('');
   const sol = saatler.slice(0, -1).map(h => { const hh = String(h).padStart(2, '0'); return `<div style="height:${SY}px"><span>${hh}:00</span><span class="yarim">${hh}:30</span></div>`; }).join('') + `<div style="height:0"><span>${String(son).padStart(2, '0')}:00</span></div>`;
-  const gecerli = hepsi.filter(d => d.durum === 'planlandi' || d.durum === 'yapildi');
-  const saat = gecerli.reduce((a, d) => a + dk(d.bit) - dk(d.bas), 0) / 60;
+  const saat = slotlar.reduce((a, s) => a + dk(s.bit) - dk(s.bas), 0) / 60;
 
-  const h = `<div class="hafta-nav">
-      <button class="btn kucuk" data-act="hafta-onceki" aria-label="Önceki hafta">‹</button>
-      <button class="hafta-ad" data-act="hafta-bu">${haftaAd(p)}${p === pazartesi(b) ? '' : '<br><small style="color:var(--ana);font-size:12px">Bu haftaya dön</small>'}</button>
-      <button class="btn kucuk" data-act="hafta-sonraki" aria-label="Sonraki hafta">›</button></div>
-    <div class="plan">
+  const h = `<div class="plan">
       <div class="p-ust" style="--g:${gunler.length}"><div></div>${ust}</div>
       <div class="p-govde" style="--sy:${SY}px;--g:${gunler.length}">
         <div class="p-saatler">${sol}</div>
         ${gunler.map(kolon).join('')}
       </div>
     </div>
-    <p class="ipucu" style="text-align:center;margin-top:10px">${gecerli.length} ders · ${String(+saat.toFixed(1)).replace('.', ',')} saat. Bir derse dokununca ayrıntısı açılır.<br>
-      <span class="p-lej"><i class="l-yap"></i>yapıldı</span> <span class="p-lej"><i class="l-plan"></i>planlı</span> <span class="p-lej"><i class="l-ipt"></i>iptal</span></p>`;
-  return { baslik: 'Haftalık plan', html: h };
+    <p class="ipucu" style="text-align:center;margin-top:10px">${slotlar.length ? `Haftada ${slotlar.length} ders · ${String(+saat.toFixed(1)).replace('.', ',')} saat.` : 'Henüz sabit ders saati yok.'}<br>
+      İptal ve ertelemeler bu programı değiştirmez. Saat eklemek ya da değiştirmek için öğrencinin üstüne dokun → <b>Düzenle</b>.</p>`;
+  return { baslik: 'Haftalık ders programı', html: h };
 }
 
 /* Haftalık kartların ayrıntısı */
@@ -603,7 +597,7 @@ function sAyarlar() {
 
   <h3 class="bolum">Diğer</h3>
   <button class="btn tehlike genis" data-act="tum-sil">Tüm verileri sil</button>
-  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.10</p>`;
+  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.11</p>`;
   return { baslik: 'Ayarlar', html: h };
 }
 
