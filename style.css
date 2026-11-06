@@ -183,6 +183,15 @@ main { padding: 4px 14px 24px; max-width: 640px; margin: 0 auto; }
 .btn { display: inline-flex; justify-content: center; align-items: center; gap: 6px; padding: 12px 14px; border-radius: 12px; background: var(--kart); color: var(--ana); font-weight: 600; font-size: 15px; box-shadow: var(--golge); border: 1px solid var(--cizgi); }
 .btn:active { opacity: .7; }
 .btn.ana { background: var(--ana); color: #fff; border-color: var(--ana); }
+/* Düğmelerdeki "+" işareti: yuvarlak, hafif vurgulu */
+.arti {
+  display: inline-grid; place-items: center; flex: none;
+  width: 22px; height: 22px; border-radius: 50%;
+  font-size: 17px; font-weight: 700; line-height: 1;
+  background: var(--ana-acik); color: var(--ana);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--ana) 35%, transparent);
+}
+.btn.ana .arti { background: rgba(255,255,255,.22); color: #fff; box-shadow: 0 0 0 1.5px rgba(255,255,255,.55); }
 .btn.yesil { background: var(--yesil); color: #fff; border-color: var(--yesil); }
 .btn.tehlike { color: #dc2626; }
 .btn.hafif { background: none; box-shadow: none; border-color: transparent; }

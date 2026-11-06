@@ -322,7 +322,7 @@ function sBugun() {
     ${kart('Toplam alacak', tl(al.toplam), al.liste.length ? al.liste.map(x => esc(x.o.ad)).join(', ') : 'Kimsenin borcu yok', al.toplam > 0 ? 'kirmizi' : 'yesil', 'kasa')}
     ${kart('Bu hafta tahsil edilen', tl(tah), 'Haftalık programa git', 'yesil', 'hafta')}
   </div>
-  <div class="buton-satiri"><button class="btn ana" data-act="odeme-yeni">+ Ödeme kaydet</button><button class="btn" data-act="ders-yeni">+ Ekstra ders</button></div>`;
+  <div class="buton-satiri"><button class="btn ana" data-act="odeme-yeni"><span class="arti">+</span>Ödeme kaydet</button><button class="btn" data-act="ders-yeni"><span class="arti">+</span>Ekstra ders</button></div>`;
   return { baslik: 'Bugün', html: h };
 }
 
@@ -369,7 +369,7 @@ function sHafta() {
       ${hesapKart('alacak', 'Kalan alacak', tl(hh.alacak), hh.alacak ? 'ödenmemiş' : 'hepsi ödendi', hh.alacak ? 'kirmizi' : '')}
     </div>
     ${govde || '<div class="bos" style="margin-top:16px">Bu hafta ders yok.</div>'}
-    <div class="buton-satiri"><button class="btn" data-act="ders-yeni">+ Ekstra ders</button><button class="btn" data-act="odeme-yeni">+ Ödeme kaydet</button></div>`;
+    <div class="buton-satiri"><button class="btn" data-act="ders-yeni"><span class="arti">+</span>Ekstra ders</button><button class="btn" data-act="odeme-yeni"><span class="arti">+</span>Ödeme kaydet</button></div>`;
   return { baslik: 'Haftalık program', html: h };
 }
 
@@ -526,7 +526,7 @@ function sKasa() {
     <tfoot><tr><td>Toplam</td><td>${ders.length}</td><td>${tl(kazanc)}</td><td>${tl(elden + iban)}</td></tr></tfoot></table>`;
 
   h += `<h3 class="bolum">Bu ayki ödemeler</h3>` + (od.length ? `<div class="liste">${od.map(p => odemeSatiri(p)).join('')}</div>` : '<div class="bos">Bu ay ödeme kaydı yok.</div>');
-  h += `<button class="btn ana genis" data-act="odeme-yeni" style="margin-top:18px">+ Ödeme kaydet</button>`;
+  h += `<button class="btn ana genis" data-act="odeme-yeni" style="margin-top:18px"><span class="arti">+</span>Ödeme kaydet</button>`;
   h += `<a class="btn genis" href="arsiv.html" style="text-decoration:none">📋 Genel arşiv: tüm kayıtlar tek sayfada</a>`;
   return { baslik: 'Kasa', html: h, sag: '<a class="ust-btn" href="arsiv.html" style="text-decoration:none">Arşiv</a>' };
 }
@@ -548,7 +548,7 @@ function sAyarlar() {
 
   <h3 class="bolum">Diğer</h3>
   <button class="btn tehlike genis" data-act="tum-sil">Tüm verileri sil</button>
-  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.4</p>`;
+  <p class="kucuk-yazi" style="text-align:center;margin-top:20px">Ders Takip · sürüm 2.5</p>`;
   return { baslik: 'Ayarlar', html: h };
 }
 
